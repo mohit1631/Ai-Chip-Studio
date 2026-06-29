@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { Readable } from 'stream';
-import AdmZip from 'adm-zip'; // npm: adm-zip
+import AdmZip from 'adm-zip';
 import { encryptBuffer } from './encryption';
 import { logger } from './logger';
 

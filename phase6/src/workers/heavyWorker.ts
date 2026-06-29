@@ -7,7 +7,7 @@
 // =====================================================
 
 import { Worker, Job } from 'bullmq';
-import { createClient } from 'ioredis';
+import Redis from "ioredis";
 import path from 'path';
 import fs from 'fs';
 
@@ -25,7 +25,7 @@ import type { JobPayload, JobType } from '../types';
 // so USE_QUEUE should be true in that environment.
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 const redis = USE_QUEUE
-  ? createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
+  ? new Redis(process.env.REDIS_URL || "redis://localhost:6379")
   : null;
 
 // LOW concurrency — OpenROAD jobs can each consume 8+ GB RAM.

@@ -14,7 +14,7 @@
 import axios, { AxiosError } from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
 import { Queue, Worker, Job } from 'bullmq';
-import { createClient } from 'ioredis';
+import Redis from "ioredis";
 import type { AIRequest, AIResponse } from '../types';
 import { logger, safeLog } from './logger';
 
@@ -31,9 +31,7 @@ const AI_CONCURRENCY = 3;
 
 // ---- Redis connection for AI request queue ----
 
-const redisClient = createClient({ 
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-});
+const redisClient = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
 // ---- AI Request Queue (BullMQ) ----
 // Per roadmap: AI queue is separate from EDA worker queues.
