@@ -6,29 +6,22 @@ the skeleton is small; split per-domain once Phase 1 grows past this size.
 """
 
 from __future__ import annotations
-
 import datetime
-
-from pydantic import BaseModel, ConfigDict, EmailStr
-
+from pydantic import BaseModel, EmailStr
 from app.models import JobStatus, JobType, ProjectRole, Tier
-
-
-# --- Auth (Sprint 5) ---
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
-
 class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     email: EmailStr
     tier: Tier
     created_at: datetime.datetime
 
+    class Config:
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
