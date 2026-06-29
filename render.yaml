@@ -118,7 +118,10 @@ services:
   - type: web
     name: ai-chip-studio-frontend
     runtime: static
-    plan: free
+    # NOTE: no `plan` field here -- Render's blueprint validator rejects
+    # `plan: free` for static sites ("no such plan free for service type
+    # web"). Static sites don't take a plan at all; they're free by
+    # default. Only runtime: docker/python/node/etc. services use `plan`.
     rootDir: phase2_new_frontend
     staticPublishPath: .
     autoDeployTrigger: commit
