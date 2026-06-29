@@ -1,0 +1,6 @@
+{
+  "name": "silicon-lint",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RTL bug detector with static rules + AI review, deployed on Netlify"
+}

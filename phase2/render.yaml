@@ -1,0 +1,46 @@
+# render.yaml — Render Blueprint for the Silicon Lint EDA backend.
+#
+# Render's free tier ("Free" plan web service) will build this Dockerfile
+# and host it. Free-tier services on Render spin down after 15 minutes of
+# inactivity and take ~30-60s to "wake up" on the next request — totally
+# fine for a personal/demo tool, just expect a cold-start delay after idle
+# periods. There's no fixed monthly cost on the Free plan, but build
+# minutes and bandwidth are capped; see https://render.com/pricing.
+#
+# Deploy steps:
+#   1. Push this repo to GitHub (this file must be at the repo ROOT, not
+#      inside eda-backend/, since Render's "render.yaml" autodetect looks
+#      at the repo root — the dockerContext/dockerfilePath below point
+#      Render at the eda-backend subfolder for the actual build).
+#   2. Go to https://dashboard.render.com -> New -> Blueprint
+#   3. Connect this GitHub repo. Render reads this file automatically and
+#      proposes the service below — click Apply.
+#   4. Once live, copy the service URL (e.g. https://silicon-lint-eda-backend.onrender.com)
+#      into the "Real EDA Tools" tab's backend URL field on your Netlify
+#      site, same as you would for a Railway URL.
+#   5. In the Render dashboard -> your service -> Environment, you can set
+#      ALLOWED_ORIGIN to your Netlify site URL to lock down CORS (optional
+#      while testing; defaults to "*" if unset).
+#
+# Note on build time: this image builds Boolector + SymbiYosys from source
+# (see eda-backend/Dockerfile) for Phase 2 formal verification, which adds
+# several minutes to the first build compared to the Verilator/Yosys-only
+# image. Render's free tier has a build time cap — if a build times out,
+# consider removing the Boolector/SymbiYosys layers from the Dockerfile
+# and deploying without /formal until you can use a paid build tier.
+
+services:
+  - type: web
+    name: silicon-lint-eda-backend
+    runtime: docker
+    plan: free
+    region: oregon # change to a region close to you / your users if you like
+    dockerContext: ./eda-backend
+    dockerfilePath: ./eda-backend/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGIN
+        value: "*" # set this to your real Netlify URL once deployed, e.g. https://your-site.netlify.app
+      - key: PORT
+        value: "8080"
+    autoDeploy: true

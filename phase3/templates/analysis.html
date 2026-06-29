@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Analysis</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Sprint 2 — Area / Timing / Power</h2>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  <div style="font-size:1.4rem;margin-bottom:1.2rem;color:{{ 'var(--good)' if report.success else 'var(--bad)' }}">
+    {{ output.status }}
+  </div>
+
+  {% if report.success %}
+
+  <!-- Area -->
+  <div class="panel">
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.05em">Area (Yosys stat)</div>
+    <div class="row"><span class="k">Cells</span><span>{{ output.cells }}</span></div>
+    <div class="row"><span class="k">Wires</span><span>{{ output.wires }}</span></div>
+    <div class="row"><span class="k">Wire Bits</span><span>{{ output.wire_bits }}</span></div>
+
+    {% if output.cell_breakdown %}
+    <div style="margin-top:1rem;color:var(--muted);font-size:.8rem;margin-bottom:.5rem">Cell Breakdown</div>
+    <table>
+      <thead><tr><th>Cell Type</th><th style="text-align:right">Count</th></tr></thead>
+      <tbody>
+      {% for ctype, cnt in output.cell_breakdown.items()|sort(attribute='1', reverse=True) %}
+        <tr><td>{{ ctype }}</td><td style="text-align:right">{{ cnt }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Timing -->
+  {% if output.timing_available %}
+  <div class="panel">
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.05em">Timing (OpenSTA)</div>
+    <div class="row"><span class="k">WNS</span><span>{{ "%.3f"|format(output.wns_ns) }} ns</span></div>
+    <div class="row"><span class="k">TNS</span><span>{{ "%.3f"|format(output.tns_ns) }} ns</span></div>
+    <div class="row"><span class="k">Timing Met</span>
+      <span class="{{ 'badge-ok' if output.timing_met else 'badge-fail' }}">
+        {{ "✓ Yes" if output.timing_met else "✗ No — negative slack" }}
+      </span>
+    </div>
+  </div>
+  {% else %}
+  <div class="panel" style="color:var(--muted);font-size:.88rem">
+    Timing / Power not available — upload a Liberty (.lib) file below to enable OpenSTA analysis.
+    <form action="/analyze/{{ job_id }}" method="post" enctype="multipart/form-data" style="margin-top:1rem">
+      <label for="liberty_file">Liberty file (.lib)</label>
+      <input type="file" id="liberty_file" name="liberty_file" accept=".lib">
+      <button type="submit">Run STA + Power</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Power -->
+  {% if output.power_available %}
+  <div class="panel">
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.05em">Power (OpenSTA)</div>
+    <div class="row"><span class="k">Dynamic</span><span>{{ "%.4f"|format(output.dynamic_power_mw) }} mW</span></div>
+    <div class="row"><span class="k">Leakage</span><span>{{ "%.4f"|format(output.leakage_power_mw) }} mW</span></div>
+    <div class="row"><span class="k">Total</span><span>{{ "%.4f"|format(output.total_power_mw) }} mW</span></div>
+  </div>
+  {% endif %}
+
+  <ul class="files" style="margin-top:.5rem">
+    <li><a href="/jobs/{{ job_id }}/analysis_report.txt">⬇ analysis_report.txt</a></li>
+  </ul>
+
+  {% else %}
+  <div class="panel">
+    <p style="color:var(--bad);margin:0">{{ output.error }}</p>
+  </div>
+  {% endif %}
+
+  <a class="back" href="/">← Back to Synthesis</a>
+</div>
+</body>
+</html>

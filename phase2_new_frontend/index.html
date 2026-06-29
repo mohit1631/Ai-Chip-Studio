@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Chip Studio — RTL to GDSII, in your browser</title>
+<meta name="description" content="Write RTL, simulate, synthesize, and run place-and-route through a real PDK — with an AI copilot at every stage. Free to start.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f0e;
+    --bg-panel: #141a18;
+    --bg-raised: #1a2120;
+    --line: #2a3331;
+    --copper: #ff6b35;
+    --copper-dim: #8a3d1f;
+    --copper-glow: rgba(255, 107, 53, 0.18);
+    --paper: #e8e4d9;
+    --paper-dim: #9aa39e;
+    --sage: #4a5d5c;
+    --sage-bright: #6f8c8a;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--paper);
+    font-family: var(--body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ---------- background trace texture ---------- */
+  .trace-field {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.22;
+    pointer-events: none;
+  }
+  .trace-field svg { width: 100%; height: 100%; }
+  .trace-glow {
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    width: 1400px;
+    height: 1400px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, var(--copper-glow) 0%, transparent 60%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- shell ---------- */
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- header ---------- */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 15, 14, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px; max-width: 1180px; margin: 0 auto; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+  .logo-mark { width: 26px; height: 26px; flex-shrink: 0; }
+  .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; color: var(--paper-dim); }
+  .nav-links a { text-decoration: none; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--paper); }
+  .nav-cta { display: flex; align-items: center; gap: 14px; }
+  .btn {
+    font-family: var(--body); font-size: 14px; font-weight: 500;
+    padding: 9px 18px; border-radius: 6px; border: 1px solid transparent;
+    cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .btn-ghost { color: var(--paper-dim); border-color: var(--line); }
+  .btn-ghost:hover { color: var(--paper); border-color: var(--sage-bright); }
+  .btn-copper { background: var(--copper); color: #1a0d05; font-weight: 600; }
+  .btn-copper:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--copper-glow); }
+  .btn-outline { border-color: var(--copper-dim); color: var(--copper); }
+  .btn-outline:hover { background: var(--copper-glow); border-color: var(--copper); }
+  @media (max-width: 760px) { .nav-links { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 110px 0 60px; text-align: center; }
+  .hero-eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--copper); margin-bottom: 22px; display: inline-flex; align-items: center; gap: 10px;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after { content: ''; width: 24px; height: 1px; background: var(--copper-dim); }
+  h1 {
+    font-family: var(--display); font-weight: 700; letter-spacing: -0.02em;
+    font-size: clamp(38px, 6.4vw, 76px); line-height: 1.04; max-width: 920px; margin: 0 auto 22px;
+  }
+  h1 .accent { color: var(--copper); }
+  .hero-sub {
+    font-size: 18px; color: var(--paper-dim); max-width: 580px; margin: 0 auto 38px; line-height: 1.6;
+  }
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 56px; }
+  .hero-ctas .btn { padding: 13px 26px; font-size: 15px; }
+
+  /* ---------- pipeline strip (signature element) ---------- */
+  .pipeline {
+    display: flex; align-items: stretch; justify-content: center; gap: 0;
+    max-width: 900px; margin: 0 auto; border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; background: var(--bg-panel);
+  }
+  .pipeline-step {
+    flex: 1; padding: 18px 14px; text-align: center; position: relative;
+    border-right: 1px solid var(--line);
+  }
+  .pipeline-step:last-child { border-right: none; }
+  .pipeline-step .step-num { font-family: var(--mono); font-size: 11px; color: var(--sage-bright); display: block; margin-bottom: 6px; }
+  .pipeline-step .step-name { font-family: var(--display); font-weight: 600; font-size: 14px; }
+  .pipeline-step.active { background: linear-gradient(180deg, var(--copper-glow), transparent); }
+  .pipeline-step.active .step-num { color: var(--copper); }
+  .pipeline-step.active::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--copper);
+  }
+  @media (max-width: 700px) {
+    .pipeline { flex-wrap: wrap; max-width: 360px; }
+    .pipeline-step { flex: 1 1 33%; border-bottom: 1px solid var(--line); }
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 96px 0; position: relative; }
+  .section-head { max-width: 640px; margin: 0 auto 56px; text-align: center; }
+  .section-eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage-bright); margin-bottom: 14px; }
+  .section-head h2 { font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.01em; line-height: 1.15; margin-bottom: 14px; }
+  .section-head p { color: var(--paper-dim); font-size: 16px; line-height: 1.65; }
+
+  /* ---------- feature rows ---------- */
+  .feature-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;
+    padding: 56px 0; border-bottom: 1px solid var(--line);
+  }
+  .feature-row:last-child { border-bottom: none; }
+  .feature-row.reverse .feature-visual { order: 2; }
+  .feature-row.reverse .feature-text { order: 1; }
+  .feature-text .stage-tag {
+    font-family: var(--mono); font-size: 11px; color: var(--copper); letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 14px; display: block;
+  }
+  .feature-text h3 { font-family: var(--display); font-size: 26px; font-weight: 600; margin-bottom: 14px; letter-spacing: -0.01em; }
+  .feature-text p { color: var(--paper-dim); font-size: 15.5px; line-height: 1.7; margin-bottom: 18px; }
+  .feature-text ul { list-style: none; }
+  .feature-text li { font-size: 14.5px; color: var(--paper-dim); padding-left: 22px; position: relative; margin-bottom: 8px; }
+  .feature-text li::before { content: '▸'; position: absolute; left: 0; color: var(--copper); }
+
+  .feature-visual {
+    aspect-ratio: 4/3; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-panel);
+    position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .feature-visual svg { width: 100%; height: 100%; }
+  .visual-label {
+    position: absolute; bottom: 14px; left: 14px; font-family: var(--mono); font-size: 11px;
+    color: var(--sage-bright); background: rgba(11,15,14,0.7); padding: 4px 9px; border-radius: 4px;
+    border: 1px solid var(--line);
+  }
+
+  @media (max-width: 820px) {
+    .feature-row, .feature-row.reverse { grid-template-columns: 1fr; gap: 28px; }
+    .feature-row.reverse .feature-visual, .feature-row.reverse .feature-text { order: initial; }
+  }
+
+  /* ---------- tool stack ---------- */
+  .stack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .stack-cell { background: var(--bg-panel); padding: 28px 24px; }
+  .stack-cell .stage { font-family: var(--mono); font-size: 11px; color: var(--copper); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; display: block; }
+  .stack-cell .tools { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tool-chip { font-family: var(--mono); font-size: 12.5px; padding: 5px 11px; border: 1px solid var(--sage); border-radius: 5px; color: var(--paper); }
+  .tool-chip.modified::after { content: ' †'; color: var(--copper); }
+  @media (max-width: 760px) { .stack-grid { grid-template-columns: 1fr; } }
+  .stack-note { text-align: center; margin-top: 18px; font-size: 12.5px; color: var(--paper-dim); }
+
+  /* ---------- pricing ---------- */
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 980px; margin: 0 auto; }
+  .price-card { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; }
+  .price-card.featured { border-color: var(--copper-dim); position: relative; background: linear-gradient(180deg, var(--copper-glow), var(--bg-panel) 40%); }
+  .price-card.featured::before {
+    content: 'BUILT FOR REAL PROJECTS'; position: absolute; top: -11px; left: 28px; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 0.08em; background: var(--copper); color: #1a0d05; padding: 3px 9px; border-radius: 4px; font-weight: 600;
+  }
+  .price-card .tier-name { font-family: var(--display); font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+  .price-card .tier-price { font-family: var(--mono); font-size: 32px; color: var(--copper); margin-bottom: 4px; }
+  .price-card .tier-price span { font-size: 14px; color: var(--paper-dim); font-family: var(--body); }
+  .price-card .tier-desc { color: var(--paper-dim); font-size: 13.5px; margin-bottom: 22px; }
+  .price-card ul { list-style: none; margin-bottom: 26px; }
+  .price-card li { font-size: 14px; padding: 7px 0; border-bottom: 1px solid var(--line); color: var(--paper-dim); }
+  .price-card li::before { content: '— '; color: var(--sage-bright); }
+  .price-card li:last-child { border-bottom: none; }
+  .price-card .btn { width: 100%; justify-content: center; }
+  @media (max-width: 820px) { .pricing-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- faq ---------- */
+  .faq-list { max-width: 720px; margin: 0 auto; }
+  .faq-item { border-bottom: 1px solid var(--line); }
+  .faq-q {
+    width: 100%; text-align: left; background: none; border: none; color: var(--paper); cursor: pointer;
+    padding: 20px 0; font-family: var(--display); font-size: 16px; font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  }
+  .faq-q .plus { font-family: var(--mono); color: var(--copper); font-size: 18px; transition: transform 0.2s; flex-shrink: 0; }
+  .faq-item.open .plus { transform: rotate(45deg); }
+  .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .faq-a p { padding-bottom: 20px; color: var(--paper-dim); font-size: 14.5px; line-height: 1.7; max-width: 640px; }
+
+  /* ---------- final cta ---------- */
+  .final-cta { text-align: center; padding: 90px 0 110px; }
+  .final-cta h2 { font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4.5vw, 44px); margin-bottom: 16px; letter-spacing: -0.01em; }
+  .final-cta p { color: var(--paper-dim); margin-bottom: 32px; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line); padding: 50px 0 32px; }
+  .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 32px; margin-bottom: 40px; }
+  .footer-brand .logo { margin-bottom: 12px; }
+  .footer-brand p { color: var(--paper-dim); font-size: 13.5px; max-width: 280px; line-height: 1.6; }
+  .footer-col h4 { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sage-bright); margin-bottom: 14px; }
+  .footer-col a { display: block; font-size: 14px; color: var(--paper-dim); text-decoration: none; margin-bottom: 10px; }
+  .footer-col a:hover { color: var(--copper); }
+  .footer-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 24px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--paper-dim); }
+  .footer-bottom .contact-links { display: flex; gap: 20px; }
+  .footer-bottom a { color: var(--copper); text-decoration: none; }
+  .footer-bottom a:hover { text-decoration: underline; }
+
+  /* ---------- auth modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 100; background: rgba(5, 7, 6, 0.75);
+    backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px;
+    width: 100%; max-width: 400px; padding: 32px; position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px; background: none; border: none;
+    color: var(--paper-dim); font-size: 22px; cursor: pointer; line-height: 1; padding: 4px;
+  }
+  .modal-close:hover { color: var(--paper); }
+  .modal-tabs { display: flex; gap: 4px; background: var(--bg-raised); border-radius: 8px; padding: 4px; margin-bottom: 24px; }
+  .modal-tab {
+    flex: 1; background: none; border: none; color: var(--paper-dim); font-family: var(--body);
+    font-size: 14px; font-weight: 500; padding: 9px; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+  }
+  .modal-tab.active { background: var(--copper); color: #1a0d05; font-weight: 600; }
+  .modal-title { font-family: var(--display); font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .modal-subtitle { color: var(--paper-dim); font-size: 13.5px; margin-bottom: 20px; }
+  .modal-error {
+    background: rgba(232, 93, 74, 0.12); border: 1px solid #e85d4a; color: #ff9b8a;
+    font-size: 13px; padding: 10px 12px; border-radius: 6px; margin-bottom: 16px;
+  }
+  .modal-label { display: block; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sage-bright); margin-bottom: 6px; }
+  .modal-input {
+    width: 100%; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 11px 12px; color: var(--paper); font-family: var(--body); font-size: 14px;
+    margin-bottom: 16px; transition: border-color 0.15s;
+  }
+  .modal-input:focus { border-color: var(--copper); outline: none; }
+  .modal-input-mono { font-family: var(--mono); font-size: 12.5px; }
+  .modal-submit { width: 100%; justify-content: center; padding: 12px; font-size: 14.5px; margin-top: 4px; }
+  .modal-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+  .modal-footnote { text-align: center; font-size: 13.5px; color: var(--paper-dim); margin-top: 18px; }
+  .modal-footnote a { color: var(--copper); text-decoration: none; }
+  .modal-footnote a:hover { text-decoration: underline; }
+  .modal-api-row { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .modal-hint { text-transform: none; color: var(--paper-dim); font-weight: 400; letter-spacing: 0; }
+  @media (max-width: 760px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="trace-glow"></div>
+<div class="trace-field" id="traceField"></div>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 28 28" fill="none">
+        <rect x="8" y="8" width="12" height="12" rx="1" stroke="#ff6b35" stroke-width="1.4"/>
+        <path d="M11 8V3M14 8V3M17 8V3M11 25V20M14 25V20M17 25V20M8 11H3M8 14H3M8 17H3M25 11H20M25 14H20M25 17H20" stroke="#ff6b35" stroke-width="1.4"/>
+      </svg>
+      AI Chip Studio
+    </div>
+    <nav class="nav-links">
+      <a href="#workflow">Workflow</a>
+      <a href="#stack">Tool Stack</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="#" id="navLoginBtn">Log In</a>
+      <a class="btn btn-copper" href="#" id="navSignupBtn">Start Designing</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="hero-eyebrow">RTL → GDSII, ONE BROWSER TAB</div>
+    <h1>Design silicon without<br>installing <span class="accent">silicon tools.</span></h1>
+    <p class="hero-sub">Write RTL, simulate it, synthesize it, and run place-and-route through a real PDK — with an AI copilot watching every stage for the bug you missed.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-copper" href="#" id="heroSignupBtn">Start Designing — Free</a>
+      <a class="btn btn-outline" href="#workflow">See the Workflow</a>
+    </div>
+
+    <div class="pipeline" id="pipelineStrip">
+      <div class="pipeline-step active" data-step="0"><span class="step-num">01</span><span class="step-name">RTL</span></div>
+      <div class="pipeline-step" data-step="1"><span class="step-num">02</span><span class="step-name">Simulate</span></div>
+      <div class="pipeline-step" data-step="2"><span class="step-num">03</span><span class="step-name">Synthesize</span></div>
+      <div class="pipeline-step" data-step="3"><span class="step-num">04</span><span class="step-name">Place &amp; Route</span></div>
+      <div class="pipeline-step" data-step="4"><span class="step-num">05</span><span class="step-name">Sign Off</span></div>
+    </div>
+  </section>
+
+  <section id="workflow">
+    <div class="section-head">
+      <div class="section-eyebrow">The Workflow</div>
+      <h2>Every stage a real chip design goes through</h2>
+      <p>Not a toy simulator — the same Verilator, Yosys, and OpenROAD a tapeout team would reach for, wired together and watched over by AI at each handoff.</p>
+    </div>
+
+    <div class="feature-row">
+      <div class="feature-text">
+        <span class="stage-tag">Stage 01 — RTL &amp; Verification</span>
+        <h3>Write Verilog, catch bugs before they're bugs</h3>
+        <p>A full editor with live linting, AI-assisted review, and waveform inspection side by side — so the gap between "I wrote this" and "I know this works" stays small.</p>
+        <ul>
+          <li>Static + AI-powered RTL review</li>
+          <li>Verilator &amp; Icarus simulation</li>
+          <li>Integrated waveform viewer</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+          <rect width="400" height="300" fill="#141a18"/>
+          <g stroke="#2a3331" stroke-width="1">
+            <line x1="0" y1="40" x2="400" y2="40"/>
+            <line x1="140" y1="40" x2="140" y2="300"/>
+          </g>
+          <text x="16" y="26" font-family="IBM Plex Mono" font-size="11" fill="#9aa39e">adder_top.sv</text>
+          <line x1="0" y1="40" x2="400" y2="40" stroke="#2a3331" stroke-width="1"/>
+          <g font-family="IBM Plex Mono" font-size="10" fill="#6f8c8a">
+            <text x="16" y="62">1</text><text x="16" y="82">2</text><text x="16" y="102">3</text><text x="16" y="122">4</text><text x="16" y="142">5</text>
+          </g>
+          <g font-family="IBM Plex Mono" font-size="11" fill="#e8e4d9">
+            <text x="38" y="62">module adder_top (</text>
+            <text x="38" y="82">  input  [7:0] a, b,</text>
+            <text x="38" y="102" fill="#ff6b35">  output [8:0] sum</text>
+            <text x="38" y="122">);</text>
+            <text x="38" y="142">  assign sum = a + b;</text>
+          </g>
+          <line x1="0" y1="172" x2="400" y2="172" stroke="#2a3331" stroke-width="1"/>
+          <text x="16" y="192" font-family="IBM Plex Mono" font-size="9.5" fill="#6f8c8a" letter-spacing="0.05em">WAVEFORM — sum[8:0]</text>
+          <g stroke="#4a5d5c" stroke-width="1.6" fill="none">
+            <path d="M16 220 H180 V250 H280 V280 H384"/>
+          </g>
+          <g stroke="#2a3331" stroke-width="1">
+            <line x1="16" y1="250" x2="384" y2="250" stroke-dasharray="2 4"/>
+          </g>
+        </svg>
+        <span class="visual-label">silicon-lint.studio</span>
+      </div>
+    </div>
+
+    <div class="feature-row reverse">
+      <div class="feature-text">
+        <span class="stage-tag">Stage 02 — Synthesis</span>
+        <h3>RTL becomes gates, instantly inspectable</h3>
+        <p>Yosys transforms your design into a gate-level netlist; we render the resulting schematic and timing report so the translation from intent to hardware isn't a black box.</p>
+        <ul>
+          <li>Yosys-based logic synthesis</li>
+          <li>Schematic &amp; timing visualization</li>
+          <li>Area / power estimates pre-layout</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+          <rect width="400" height="300" fill="#141a18"/>
+          <g stroke="#4a5d5c" stroke-width="1.2" fill="none">
+            <rect x="40" y="50" width="60" height="34" rx="3"/>
+            <rect x="40" y="110" width="60" height="34" rx="3"/>
+            <rect x="170" y="80" width="60" height="34" rx="3" stroke="#ff6b35"/>
+            <rect x="300" y="80" width="60" height="34" rx="3"/>
+            <line x1="100" y1="67" x2="170" y2="90"/>
+            <line x1="100" y1="127" x2="170" y2="103"/>
+            <line x1="230" y1="97" x2="300" y2="97"/>
+          </g>
+          <g font-family="IBM Plex Mono" font-size="9.5" fill="#e8e4d9">
+            <text x="50" y="71">FA[0]</text>
+            <text x="50" y="131">FA[1]</text>
+            <text x="183" y="101" fill="#ff6b35">XOR2</text>
+            <text x="318" y="101">OUT</text>
+          </g>
+          <text x="16" y="270" font-family="IBM Plex Mono" font-size="9" fill="#6f8c8a">yosys: 14 cells · 3 levels · 0.42ns crit. path</text>
+        </svg>
+        <span class="visual-label">synthesis-studio</span>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div class="feature-text">
+        <span class="stage-tag">Stage 03 — Place &amp; Route</span>
+        <h3>Real layout, real PPA, real PDK</h3>
+        <p>OpenROAD floorplans, places, and routes your netlist against an actual process design kit — so the power, performance, and area numbers you get back are the ones that matter.</p>
+        <ul>
+          <li>SKY130 &amp; GF180MCU PDK support</li>
+          <li>Floorplan → CTS → routing → signoff</li>
+          <li>DRC-checked, downloadable GDSII</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+          <rect width="400" height="300" fill="#141a18"/>
+          <rect x="40" y="30" width="320" height="240" fill="none" stroke="#2a3331" stroke-width="1.5"/>
+          <g stroke="#4a5d5c" stroke-width="0.8" opacity="0.7">
+            <line x1="40" y1="70" x2="360" y2="70"/><line x1="40" y1="110" x2="360" y2="110"/>
+            <line x1="40" y1="150" x2="360" y2="150"/><line x1="40" y1="190" x2="360" y2="190"/>
+            <line x1="40" y1="230" x2="360" y2="230"/>
+            <line x1="90" y1="30" x2="90" y2="270"/><line x1="150" y1="30" x2="150" y2="270"/>
+            <line x1="210" y1="30" x2="210" y2="270"/><line x1="270" y1="30" x2="270" y2="270"/>
+            <line x1="330" y1="30" x2="330" y2="270"/>
+          </g>
+          <g stroke="#ff6b35" stroke-width="2.2" fill="none">
+            <path d="M90 70 L90 150 L210 150 L210 230 L330 230"/>
+            <path d="M150 30 L150 110 L270 110 L270 190"/>
+          </g>
+          <g fill="#1a2120" stroke="#6f8c8a" stroke-width="0.8">
+            <rect x="65" y="60" width="20" height="14"/><rect x="125" y="140" width="20" height="14"/>
+            <rect x="245" y="100" width="20" height="14"/><rect x="305" y="220" width="20" height="14"/>
+          </g>
+          <text x="16" y="290" font-family="IBM Plex Mono" font-size="9" fill="#6f8c8a">die: 420×420µm · util 68% · wirelength 8.2mm</text>
+        </svg>
+        <span class="visual-label">openroad · sky130hd</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="section-head">
+      <div class="section-eyebrow">Under The Hood</div>
+      <h2>No proprietary black boxes</h2>
+      <p>Every stage runs on tools you could install yourself — we just save you the week of setting them up.</p>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-cell">
+        <span class="stage">RTL &amp; Simulation</span>
+        <div class="tools">
+          <span class="tool-chip">Verilator</span>
+          <span class="tool-chip">Icarus</span>
+          <span class="tool-chip modified">VCDviz</span>
+        </div>
+      </div>
+      <div class="stack-cell">
+        <span class="stage">Synthesis</span>
+        <div class="tools">
+          <span class="tool-chip">Yosys</span>
+          <span class="tool-chip">ABC</span>
+          <span class="tool-chip modified">netlistsvg</span>
+        </div>
+      </div>
+      <div class="stack-cell">
+        <span class="stage">Place &amp; Route</span>
+        <div class="tools">
+          <span class="tool-chip">OpenROAD</span>
+          <span class="tool-chip">OpenSTA</span>
+        </div>
+      </div>
+    </div>
+    <p class="stack-note">† modified for AI Chip Studio</p>
+  </section>
+
+  <section id="pricing">
+    <div class="section-head">
+      <div class="section-eyebrow">Pricing</div>
+      <h2>Start free. Pay when it's real.</h2>
+      <p>5 jobs a month costs nothing — enough to learn the flow on a real design before you decide it's worth more.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="tier-name">Free</div>
+        <div class="tier-price">₹0</div>
+        <div class="tier-desc">For learning the flow</div>
+        <ul>
+          <li>5 jobs / month</li>
+          <li>RTL lint, simulation, synthesis</li>
+          <li>Community Workshop access</li>
+        </ul>
+        <a class="btn btn-outline js-signup" href="#">Start Free</a>
+      </div>
+      <div class="price-card featured">
+        <div class="tier-name">Pro</div>
+        <div class="tier-price">₹999<span>/mo</span></div>
+        <div class="tier-desc">For real tapeout-track projects</div>
+        <ul>
+          <li>200 jobs / month</li>
+          <li>Full place &amp; route, real PDKs</li>
+          <li>AI copilot, priority queue</li>
+        </ul>
+        <a class="btn btn-copper js-signup" href="#">Go Pro</a>
+      </div>
+      <div class="price-card">
+        <div class="tier-name">Team</div>
+        <div class="tier-price">Custom</div>
+        <div class="tier-desc">For labs &amp; startups</div>
+        <ul>
+          <li>Unlimited jobs</li>
+          <li>Shared projects &amp; orgs</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a class="btn btn-outline" href="mailto:mohitabr7@gmail.com?subject=AI%20Chip%20Studio%20Team%20Plan">Talk to Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="section-head">
+      <div class="section-eyebrow">FAQ</div>
+      <h2>Before you ask in Discord</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-q">What is AI Chip Studio? <span class="plus">+</span></button>
+        <div class="faq-a"><p>A browser-based EDA platform that takes a Verilog design through simulation, synthesis, and place-and-route — the same open-source tools (Verilator, Yosys, OpenROAD) a real tapeout team uses, with an AI copilot reviewing your RTL and flagging issues at every stage.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Why not just run the tools locally? <span class="plus">+</span></button>
+        <div class="faq-a"><p>You can — and for serious production work, you eventually should. But installing Yosys, OpenROAD, and a PDK correctly takes a weekend most people don't have. This gets you from zero to a working design in minutes, and exports everything you need if you outgrow it.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Do I need chip design experience? <span class="plus">+</span></button>
+        <div class="faq-a"><p>No — if you can write a bit of Verilog, the platform walks you through simulation, synthesis, and layout. The AI copilot explains what each stage is doing, not just what broke.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">What PDKs are available? <span class="plus">+</span></button>
+        <div class="faq-a"><p>SKY130 and GF180MCU for real, fabricatable designs. FreePDK45 and a couple of smaller academic nodes are also available for experimentation — those are predictive/research models only and can't be sent to a foundry.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">Can I actually fabricate my design? <span class="plus">+</span></button>
+        <div class="faq-a"><p>Designs run through SKY130 or GF180MCU produce a real, DRC-checked GDSII that's compatible with shuttle programs like efabless ChipIgnite. Designs run through the academic-node PDKs are for learning the flow only.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final-cta">
+    <h2>Your first chip is five minutes away.</h2>
+    <p>No installs. No license servers. Just RTL and an idea.</p>
+    <a class="btn btn-copper" href="#" id="finalSignupBtn" style="padding:15px 32px; font-size:16px;">Start Designing — Free</a>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo">
+          <svg class="logo-mark" viewBox="0 0 28 28" fill="none">
+            <rect x="8" y="8" width="12" height="12" rx="1" stroke="#ff6b35" stroke-width="1.4"/>
+            <path d="M11 8V3M14 8V3M17 8V3M11 25V20M14 25V20M17 25V20M8 11H3M8 14H3M8 17H3M25 11H20M25 14H20M25 17H20" stroke="#ff6b35" stroke-width="1.4"/>
+          </svg>
+          AI Chip Studio
+        </div>
+        <p>An open path from RTL to GDSII, built by one engineer who got tired of asking for license seats.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#workflow">Workflow</a>
+        <a href="#stack">Tool Stack</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#faq">FAQ</a>
+        <a href="#">Documentation</a>
+        <a href="#">Workshop</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Service</a>
+        <a href="#">Privacy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>AI CHIP STUDIO — RTL TO GDSII</span>
+      <span class="contact-links">
+        <a href="tel:+919417551539">+91 94175 51539</a>
+        <a href="mailto:mohitabr7@gmail.com">mohitabr7@gmail.com</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-backdrop" id="authModalBackdrop">
+  <div class="modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <button class="modal-close" id="authModalClose" aria-label="Close">&times;</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tabLogin" type="button">Log In</button>
+      <button class="modal-tab" id="tabSignup" type="button">Sign Up</button>
+    </div>
+    <h3 id="authModalTitle" class="modal-title">Welcome back</h3>
+    <p class="modal-subtitle" id="authModalSubtitle">Log in to your AI Chip Studio account.</p>
+
+    <div class="modal-error" id="authModalError" style="display:none;"></div>
+
+    <form id="authForm">
+      <label class="modal-label" for="authEmail">Email</label>
+      <input class="modal-input" type="email" id="authEmail" autocomplete="email" required>
+      <label class="modal-label" for="authPassword">Password</label>
+      <input class="modal-input" type="password" id="authPassword" autocomplete="current-password" required minlength="8">
+      <button class="btn btn-copper modal-submit" type="submit" id="authSubmitBtn">Log In</button>
+    </form>
+
+    <p class="modal-footnote" id="authModalFootnote">
+      New here? <a href="#" id="authSwitchToSignup">Create an account</a>
+    </p>
+
+    <div class="modal-api-row">
+      <label class="modal-label" for="apiBaseInput">API Base URL <span class="modal-hint">(set once it's deployed)</span></label>
+      <input class="modal-input modal-input-mono" type="text" id="apiBaseInput" placeholder="https://ai-chip-studio-phase1.onrender.com">
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- background trace field (signature texture) ----------
+(function buildTraceField() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 1200 1600');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const hLines = 8, vLines = 6;
+  for (let i = 0; i < hLines; i++) {
+    const y = (i / (hLines - 1)) * 1600;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', 0); line.setAttribute('y1', y);
+    line.setAttribute('x2', 1200); line.setAttribute('y2', y);
+    line.setAttribute('stroke', '#1a2120');
+    line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+  }
+  for (let i = 0; i < vLines; i++) {
+    const x = (i / (vLines - 1)) * 1200;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', x); line.setAttribute('y1', 0);
+    line.setAttribute('x2', x); line.setAttribute('y2', 1600);
+    line.setAttribute('stroke', '#1a2120');
+    line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+  }
+
+  // A handful of copper "routed traces" -- right-angle paths like real
+  // metal-layer routing, animated with a slow dash-offset drift.
+  const traces = [
+    'M0,220 H300 V480 H700 V820',
+    'M1200,140 H850 V520 H450 V900',
+    'M0,1100 H400 V760 H900',
+    'M1200,1400 H750 V1100 H300 V700',
+  ];
+  traces.forEach((d, i) => {
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#ff6b35');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-dasharray', '6 10');
+    path.setAttribute('opacity', '0.35');
+    path.style.animation = `dashDrift ${18 + i * 4}s linear infinite`;
+    svg.appendChild(path);
+  });
+
+  document.getElementById('traceField').appendChild(svg);
+
+  const styleTag = document.createElement('style');
+  styleTag.textContent = '@keyframes dashDrift { to { stroke-dashoffset: -160; } }';
+  document.head.appendChild(styleTag);
+})();
+
+// ---------- pipeline strip: cycle the active stage ----------
+(function cyclePipeline() {
+  const steps = document.querySelectorAll('#pipelineStrip .pipeline-step');
+  if (!steps.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let active = 0;
+  setInterval(() => {
+    steps[active].classList.remove('active');
+    active = (active + 1) % steps.length;
+    steps[active].classList.add('active');
+  }, 2200);
+})();
+
+// ---------- FAQ accordion ----------
+document.querySelectorAll('.faq-item').forEach(item => {
+  const q = item.querySelector('.faq-q');
+  const a = item.querySelector('.faq-a');
+  q.addEventListener('click', () => {
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(open => {
+      open.classList.remove('open');
+      open.querySelector('.faq-a').style.maxHeight = null;
+    });
+    if (!isOpen) {
+      item.classList.add('open');
+      a.style.maxHeight = a.scrollHeight + 'px';
+    }
+  });
+});
+// ---------- Auth: API base URL ----------
+// Saved in localStorage so a user only has to set this once per browser.
+// Defaults to '' (empty) until you've deployed phase1 and know the real
+// Render URL -- update DEFAULT_API_BASE below once you do, so new
+// visitors don't have to find/paste it themselves.
+const DEFAULT_API_BASE = ''; // e.g. 'https://ai-chip-studio-phase1.onrender.com'
+
+function getApiBase() {
+  return localStorage.getItem('aics_api_base') || DEFAULT_API_BASE;
+}
+function setApiBase(url) {
+  localStorage.setItem('aics_api_base', url.trim().replace(/\/+$/, ''));
+}
+
+// ---------- Auth: token storage ----------
+function saveToken(token) { localStorage.setItem('aics_token', token); }
+function getToken() { return localStorage.getItem('aics_token'); }
+function clearToken() { localStorage.removeItem('aics_token'); }
+
+// ---------- Auth modal ----------
+(function authModal() {
+  const backdrop = document.getElementById('authModalBackdrop');
+  const closeBtn = document.getElementById('authModalClose');
+  const tabLogin = document.getElementById('tabLogin');
+  const tabSignup = document.getElementById('tabSignup');
+  const title = document.getElementById('authModalTitle');
+  const subtitle = document.getElementById('authModalSubtitle');
+  const form = document.getElementById('authForm');
+  const submitBtn = document.getElementById('authSubmitBtn');
+  const footnote = document.getElementById('authModalFootnote');
+  const errorBox = document.getElementById('authModalError');
+  const emailInput = document.getElementById('authEmail');
+  const passwordInput = document.getElementById('authPassword');
+  const apiBaseInput = document.getElementById('apiBaseInput');
+  const switchToSignup = document.getElementById('authSwitchToSignup');
+
+  let mode = 'login'; // 'login' | 'signup'
+
+  apiBaseInput.value = getApiBase();
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+  }
+  function hideError() {
+    errorBox.style.display = 'none';
+  }
+
+  function setMode(next) {
+    mode = next;
+    hideError();
+    if (mode === 'login') {
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      title.textContent = 'Welcome back';
+      subtitle.textContent = 'Log in to your AI Chip Studio account.';
+      submitBtn.textContent = 'Log In';
+      passwordInput.setAttribute('autocomplete', 'current-password');
+      footnote.innerHTML = `New here? <a href="#" id="authSwitchToSignup">Create an account</a>`;
+    } else {
+      tabLogin.classList.remove('active');
+      tabSignup.classList.add('active');
+      title.textContent = 'Create your account';
+      subtitle.textContent = '5 jobs a month, free — no card required.';
+      submitBtn.textContent = 'Create Account';
+      passwordInput.setAttribute('autocomplete', 'new-password');
+      footnote.innerHTML = `Already have an account? <a href="#" id="authSwitchToLogin">Log in</a>`;
+    }
+    // Re-bind the footnote link since innerHTML replaced it
+    const link = footnote.querySelector('a');
+    if (link) link.addEventListener('click', (e) => {
+      e.preventDefault();
+      setMode(mode === 'login' ? 'signup' : 'login');
+    });
+  }
+
+  function openModal(initialMode) {
+    setMode(initialMode || 'login');
+    backdrop.classList.add('open');
+    emailInput.focus();
+  }
+  function closeModal() {
+    backdrop.classList.remove('open');
+    hideError();
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  tabLogin.addEventListener('click', () => setMode('login'));
+  tabSignup.addEventListener('click', () => setMode('signup'));
+
+  // Every "Start Designing" / "Log In" trigger on the page opens this
+  // same modal, defaulting to signup except the explicit Log In buttons.
+  document.getElementById('navLoginBtn')?.addEventListener('click', (e) => { e.preventDefault(); openModal('login'); });
+  document.getElementById('navSignupBtn')?.addEventListener('click', (e) => { e.preventDefault(); openModal('signup'); });
+  document.getElementById('heroSignupBtn')?.addEventListener('click', (e) => { e.preventDefault(); openModal('signup'); });
+  document.getElementById('finalSignupBtn')?.addEventListener('click', (e) => { e.preventDefault(); openModal('signup'); });
+  document.querySelectorAll('.js-signup').forEach(el => {
+    el.addEventListener('click', (e) => { e.preventDefault(); openModal('signup'); });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+
+    const apiBase = apiBaseInput.value.trim().replace(/\/+$/, '');
+    if (!apiBase) {
+      showError('Set the API Base URL below first (the phase1 backend URL).');
+      return;
+    }
+    setApiBase(apiBase);
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = mode === 'login' ? 'Logging in…' : 'Creating account…';
+
+    try {
+      if (mode === 'signup') {
+        // POST /auth/register expects JSON
+        const registerResp = await fetch(`${apiBase}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!registerResp.ok) {
+          const errBody = await registerResp.json().catch(() => ({}));
+          throw new Error(errBody.detail || `Sign up failed (${registerResp.status})`);
+        }
+        // Registration succeeded -- now log in to get a token, since
+        // /auth/register returns the created user, not a token.
+      }
+
+      // POST /auth/login expects application/x-www-form-urlencoded with
+      // 'username' (not 'email') + 'password' -- that's FastAPI's
+      // OAuth2PasswordRequestForm convention, see app/routers/auth.py.
+      const loginBody = new URLSearchParams();
+      loginBody.set('username', email);
+      loginBody.set('password', password);
+
+      const loginResp = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: loginBody.toString(),
+      });
+      if (!loginResp.ok) {
+        const errBody = await loginResp.json().catch(() => ({}));
+        throw new Error(errBody.detail || `Log in failed (${loginResp.status})`);
+      }
+      const { access_token } = await loginResp.json();
+      saveToken(access_token);
+
+      window.location.href = 'console.html';
+    } catch (err) {
+      showError(err.message || 'Something went wrong. Check the API Base URL and try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = mode === 'login' ? 'Log In' : 'Create Account';
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

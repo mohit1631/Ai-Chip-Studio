@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Tech Map Result</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Sprint 3 — Technology Mapping</h2>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap" class="active">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  <div style="font-size:1.4rem;margin-bottom:1.2rem;color:{{ 'var(--good)' if result.success else 'var(--bad)' }}">
+    {{ output.status }}
+  </div>
+
+  <div class="panel">
+    {% if result.success %}
+      <div class="row"><span class="k">Job ID</span><span>{{ job_id }}</span></div>
+      <div class="row"><span class="k">Top Module</span><span>{{ result.top_module }}</span></div>
+      {% if output.mapped_cells is defined and output.mapped_cells %}
+      <div class="row"><span class="k">Mapped Cells</span><span>{{ output.mapped_cells }}</span></div>
+      {% endif %}
+      {% if output.liberty is defined %}
+      <div class="row"><span class="k">Liberty</span><span>{{ output.liberty }}</span></div>
+      {% endif %}
+      {% if output.note is defined %}
+      <div class="row"><span class="k">Note</span><span style="color:var(--warn)">{{ output.note }}</span></div>
+      {% endif %}
+      <div style="margin-top:.75rem"></div>
+      <ul class="files">
+        {% for f in output.generated_files %}
+          <li><a href="/jobs/{{ job_id }}/{{ f }}">⬇ {{ f }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p style="color:var(--bad);margin:0 0 .75rem">{{ output.error }}</p>
+      {% if output.log_file %}
+        <ul class="files"><li><a href="/jobs/{{ job_id }}/{{ output.log_file }}">⬇ {{ output.log_file }}</a></li></ul>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <a class="back" href="/techmap">← Run another tech map</a>
+</div>
+</body>
+</html>

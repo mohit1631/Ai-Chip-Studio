@@ -1,0 +1,128 @@
+# =====================================================
+# AI Chip Studio — Phase 6 — Local Dev Compose
+# =====================================================
+
+version: "3.9"
+
+services:
+  # ---- Infrastructure ----
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chipstudio
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chipstudio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chipstudio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---- API Gateway ----
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://chipstudio:password@postgres:5432/chipstudio
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-change-in-production-32chars
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_FALLBACK_ENABLED: "true"
+      OLLAMA_MODEL: qwen2.5-coder:7b
+    ports:
+      - "3001:3001"
+    volumes:
+      - uploads:/tmp/chip-studio-uploads
+      - outputs:/tmp/chip-studio-outputs
+      - /var/run/docker.sock:/var/run/docker.sock  # for dockerode
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chip-studio-net
+
+  # ---- Light Worker ----
+
+  light-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    command: ["node", "dist/workers/lightWorker.js"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://chipstudio:password@postgres:5432/chipstudio
+      REDIS_URL: redis://redis:6379
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - uploads:/tmp/chip-studio-uploads
+      - outputs:/tmp/chip-studio-outputs
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - api
+    networks:
+      - chip-studio-net
+
+  # ---- Heavy Worker ----
+
+  heavy-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    command: ["node", "dist/workers/heavyWorker.js"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://chipstudio:password@postgres:5432/chipstudio
+      REDIS_URL: redis://redis:6379
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - uploads:/tmp/chip-studio-uploads
+      - outputs:/tmp/chip-studio-outputs
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - api
+    networks:
+      - chip-studio-net
+
+  # ---- Ollama (CPU-only for local dev; GPU host used in prod) ----
+  # In production, this runs on a SEPARATE GPU host, not on Render.
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - chip-studio-net
+    # Pull model on startup for dev convenience
+    entrypoint: ["/bin/bash", "-c", "ollama serve & sleep 5 && ollama pull qwen2.5-coder:7b && wait"]
+
+networks:
+  chip-studio-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  uploads:
+  outputs:
+  ollama-models:

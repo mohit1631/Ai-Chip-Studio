@@ -1,0 +1,45 @@
+# =====================================================
+# AI Chip Studio — Heavy Worker Docker Image
+# Tools: Yosys, SymbiYosys, OpenROAD
+# Pool: synthesis, formal, physical_design
+# =====================================================
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Yosys
+    yosys \
+    # SymbiYosys (formal)
+    symbiyosys \
+    boolector \
+    z3 \
+    # Python for TCL scripts
+    python3 \
+    python3-pip \
+    tcl \
+    tcllib \
+    # OpenROAD — install from pre-built binary
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# OpenROAD binary (replace URL with your pinned release)
+RUN wget -q https://github.com/The-OpenROAD-Project/OpenROAD/releases/download/v3.0/openroad-ubuntu24.tar.gz \
+    -O /tmp/openroad.tar.gz \
+    && tar -xzf /tmp/openroad.tar.gz -C /usr/local \
+    && rm /tmp/openroad.tar.gz
+
+ENV PATH="/usr/local/openroad/bin:${PATH}"
+
+# Non-root user
+RUN useradd -m -u 1001 -s /bin/bash worker
+
+WORKDIR /work
+RUN chown worker:worker /work
+
+USER worker
+
+LABEL maintainer="AI Chip Studio"
+LABEL pool="heavy"

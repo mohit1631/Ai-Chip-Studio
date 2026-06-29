@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Console — AI Chip Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f0e; --bg-panel: #141a18; --bg-raised: #1a2120; --line: #2a3331;
+    --copper: #ff6b35; --copper-dim: #8a3d1f; --copper-glow: rgba(255, 107, 53, 0.18);
+    --paper: #e8e4d9; --paper-dim: #9aa39e; --sage: #4a5d5c; --sage-bright: #6f8c8a;
+    --red: #e85d4a; --green: #5fbf8f;
+    --display: 'Space Grotesk', sans-serif; --body: 'IBM Plex Sans', sans-serif; --mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--paper); font-family: var(--body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+
+  header { border-bottom: 1px solid var(--line); padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 600; font-size: 16px; }
+  .logo-mark { width: 24px; height: 24px; }
+  .header-right { display: flex; align-items: center; gap: 16px; font-size: 13.5px; color: var(--paper-dim); }
+  .tier-badge { font-family: var(--mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--copper-dim); color: var(--copper); border-radius: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .logout-link { color: var(--paper-dim); cursor: pointer; }
+  .logout-link:hover { color: var(--copper); }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 28px 80px; }
+  .page-head { margin-bottom: 32px; }
+  .page-head h1 { font-family: var(--display); font-weight: 600; font-size: 26px; margin-bottom: 6px; }
+  .page-head p { color: var(--paper-dim); font-size: 14.5px; }
+
+  .panel { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 28px; margin-bottom: 24px; }
+  .panel h2 { font-family: var(--display); font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+
+  .dropzone {
+    border: 1.5px dashed var(--line); border-radius: 8px; padding: 36px; text-align: center;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--copper); background: var(--copper-glow); }
+  .dropzone p { color: var(--paper-dim); font-size: 14px; margin-top: 8px; }
+  .dropzone .dz-icon { font-family: var(--mono); font-size: 28px; color: var(--sage-bright); }
+  .dropzone strong { color: var(--paper); }
+  #fileInput, #synthFileInput, #phase6FileInput { display: none; }
+
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 10px; background: var(--bg-raised);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-family: var(--mono);
+    font-size: 13px; margin-top: 12px;
+  }
+  .file-chip .remove { color: var(--red); cursor: pointer; font-weight: 600; }
+
+  .project-name-row { margin-top: 18px; }
+  .modal-label { display: block; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sage-bright); margin-bottom: 6px; }
+  .text-input {
+    width: 100%; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 11px 12px; color: var(--paper); font-family: var(--body); font-size: 14px;
+  }
+  .text-input:focus { border-color: var(--copper); outline: none; }
+
+  .btn {
+    font-family: var(--body); font-size: 14px; font-weight: 500; padding: 11px 22px; border-radius: 6px;
+    border: 1px solid transparent; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-copper { background: var(--copper); color: #1a0d05; font-weight: 600; }
+  .btn-copper:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--copper-glow); }
+  .btn-copper:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-outline { border-color: var(--sage); color: var(--paper); background: none; }
+
+  .run-row { margin-top: 22px; display: flex; align-items: center; gap: 16px; }
+  .status-line { font-family: var(--mono); font-size: 13px; color: var(--paper-dim); }
+  .status-line.error { color: var(--red); }
+  .status-line.success { color: var(--green); }
+
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--copper);
+    border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .results { display: none; }
+  .results.show { display: block; }
+  .issue {
+    display: grid; grid-template-columns: 90px 1fr 70px; gap: 14px; align-items: start;
+    padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+  }
+  .issue:last-child { border-bottom: none; }
+  .issue .rule { font-family: var(--mono); font-size: 11.5px; color: var(--sage-bright); }
+  .issue .msg { color: var(--paper); }
+  .issue .msg .line-no { color: var(--paper-dim); font-family: var(--mono); font-size: 11.5px; }
+  .sev-tag { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; text-align: center; }
+  .sev-error { background: rgba(232,93,74,0.15); color: var(--red); }
+  .sev-warning { background: rgba(255,107,53,0.15); color: var(--copper); }
+  .status-pill { font-family: var(--mono); font-size: 9.5px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+  .status-pill.predicted { background: rgba(74,93,92,0.3); color: var(--sage-bright); }
+  .status-pill.confirmed { background: rgba(95,191,143,0.2); color: var(--green); }
+  .empty-state { text-align: center; color: var(--paper-dim); font-size: 14px; padding: 30px 0; }
+
+  .login-gate {
+    max-width: 420px; margin: 100px auto; text-align: center; padding: 0 20px;
+  }
+  .login-gate h2 { font-family: var(--display); font-size: 22px; margin-bottom: 10px; }
+  .login-gate p { color: var(--paper-dim); margin-bottom: 22px; font-size: 14.5px; }
+
+  /* ---------- tool tabs ---------- */
+  .tool-tabs {
+    display: flex; gap: 4px; background: var(--bg-raised); border-radius: 8px;
+    padding: 4px; margin-bottom: 32px; max-width: fit-content;
+  }
+  .tool-tab {
+    background: none; border: none; color: var(--paper-dim); font-family: var(--body);
+    font-size: 13.5px; font-weight: 500; padding: 9px 16px; border-radius: 6px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .tool-tab.active { background: var(--copper); color: #1a0d05; font-weight: 600; }
+  .tool-panel { display: none; }
+  .tool-panel.active { display: block; }
+  .api-base-note {
+    font-family: var(--mono); font-size: 12px; color: var(--paper-dim); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .api-base-note input {
+    background: var(--bg-raised); border: 1px solid var(--line); border-radius: 5px;
+    padding: 6px 10px; color: var(--paper); font-family: var(--mono); font-size: 12px;
+    flex: 1; max-width: 360px;
+  }
+  textarea.text-input { font-family: var(--mono); font-size: 12.5px; resize: vertical; min-height: 90px; }
+  .field-row { margin-bottom: 16px; }
+  .field-row label { display: block; margin-bottom: 6px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .result-block {
+    background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px; margin-top: 4px; font-family: var(--mono); font-size: 12.5px;
+    white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto;
+  }
+  .result-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .result-meta .tag { font-family: var(--mono); font-size: 11px; padding: 3px 9px; border-radius: 4px; background: var(--bg-raised); border: 1px solid var(--line); color: var(--sage-bright); }
+  .result-meta .tag.ok { color: var(--green); border-color: var(--green); }
+  .result-meta .tag.fail { color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <svg class="logo-mark" viewBox="0 0 28 28" fill="none">
+      <rect x="8" y="8" width="12" height="12" rx="1" stroke="#ff6b35" stroke-width="1.4"/>
+      <path d="M11 8V3M14 8V3M17 8V3M11 25V20M14 25V20M17 25V20M8 11H3M8 14H3M8 17H3M25 11H20M25 14H20M25 17H20" stroke="#ff6b35" stroke-width="1.4"/>
+    </svg>
+    AI Chip Studio
+  </a>
+  <div class="header-right" id="headerRight"></div>
+</header>
+
+<div id="gatedContent" style="display:none;">
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Console</h1>
+      <p>Run any stage of the pipeline directly from the browser.</p>
+    </div>
+
+    <div class="tool-tabs">
+      <button class="tool-tab active" data-tab="lint">AI Lint</button>
+      <button class="tool-tab" data-tab="synthesis">Synthesis</button>
+      <button class="tool-tab" data-tab="pd">Physical Design</button>
+      <button class="tool-tab" data-tab="copilot">AI Copilot</button>
+      <button class="tool-tab" data-tab="cloud">Cloud API</button>
+    </div>
+
+    <div class="tool-panel active" id="panel-lint">
+    <div class="panel">
+      <h2>1. Upload</h2>
+      <div class="dropzone" id="dropzone">
+        <div class="dz-icon">⤓</div>
+        <p><strong>Click to browse</strong> or drag a .v / .sv / .zip file here</p>
+      </div>
+      <input type="file" id="fileInput" accept=".v,.sv,.zip">
+      <div id="fileChipHolder"></div>
+
+      <div class="project-name-row">
+        <label class="modal-label" for="projectNameInput">Project Name</label>
+        <input class="text-input" type="text" id="projectNameInput" placeholder="my-adder-design" value="">
+      </div>
+
+      <div class="run-row">
+        <button class="btn btn-copper" id="runLintBtn" disabled>Run AI Lint</button>
+        <span class="status-line" id="statusLine"></span>
+      </div>
+    </div>
+
+    <div class="panel results" id="resultsPanel">
+      <h2>2. Results</h2>
+      <div id="issuesList"></div>
+    </div>
+    </div>
+
+    <div class="tool-panel" id="panel-synthesis">
+      <div class="api-base-note">
+        Phase 3 (Synthesis Studio) API base:
+        <input type="text" id="phase3ApiBase" placeholder="https://ai-chip-studio-phase3.onrender.com">
+      </div>
+      <div class="panel">
+        <h2>Synthesis</h2>
+        <div class="dropzone" id="dropzoneSynth">
+          <div class="dz-icon">⤓</div>
+          <p><strong>Click to browse</strong> or drag a .v / .sv / .zip file here</p>
+        </div>
+        <input type="file" id="synthFileInput" accept=".v,.sv,.zip">
+        <div id="synthFileChipHolder"></div>
+        <div class="field-row" style="margin-top:16px;">
+          <label class="modal-label" for="synthTopModule">Top Module <span class="modal-hint">(optional)</span></label>
+          <input class="text-input" type="text" id="synthTopModule" placeholder="auto-detected if left blank">
+        </div>
+        <div class="run-row">
+          <button class="btn btn-copper" id="runSynthBtn" disabled>Run Synthesis</button>
+          <span class="status-line" id="synthStatusLine"></span>
+        </div>
+      </div>
+      <div class="panel results" id="synthResultsPanel">
+        <h2>Result</h2>
+        <div id="synthResultBlock"></div>
+      </div>
+    </div>
+
+    <div class="tool-panel" id="panel-pd">
+      <div class="api-base-note">
+        Phase 4 (Physical Design) API base:
+        <input type="text" id="phase4ApiBase" placeholder="https://ai-chip-studio-phase4.onrender.com">
+      </div>
+      <div class="panel">
+        <h2>Physical Design</h2>
+        <p style="color:var(--paper-dim); font-size:13.5px; margin-bottom:18px;">
+          This stage runs against files already on the server (not a browser upload) --
+          give it filesystem paths from a previous synthesis job, plus a PDK preset.
+          Free-tier deployments can't actually run OpenROAD (needs several GB of RAM) --
+          this will reach the API and tell you so, rather than hang.
+        </p>
+        <div class="two-col">
+          <div class="field-row">
+            <label class="modal-label" for="pdNetlistPath">Netlist Path</label>
+            <input class="text-input" type="text" id="pdNetlistPath" placeholder="/app/jobs/abc123/netlist.v">
+          </div>
+          <div class="field-row">
+            <label class="modal-label" for="pdSdcPath">SDC Path</label>
+            <input class="text-input" type="text" id="pdSdcPath" placeholder="/app/jobs/abc123/constraints.sdc">
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="modal-label" for="pdPdk">PDK Preset</label>
+          <input class="text-input" type="text" id="pdPdk" value="sky130" placeholder="sky130 / gf180mcu / freepdk45">
+        </div>
+        <div class="run-row">
+          <button class="btn btn-copper" id="runPdBtn">Run Physical Design</button>
+          <span class="status-line" id="pdStatusLine"></span>
+        </div>
+      </div>
+      <div class="panel results" id="pdResultsPanel">
+        <h2>Result</h2>
+        <div id="pdResultBlock"></div>
+      </div>
+    </div>
+
+    <div class="tool-panel" id="panel-copilot">
+      <div class="api-base-note">
+        Phase 5 (AI Copilot) API base:
+        <input type="text" id="phase5ApiBase" placeholder="https://ai-chip-studio-phase5.onrender.com">
+      </div>
+      <div class="panel">
+        <h2>AI Copilot</h2>
+        <div class="field-row">
+          <label class="modal-label" for="copilotTask">Task</label>
+          <select class="text-input" id="copilotTask">
+            <option value="rtl">Generate RTL from spec</option>
+            <option value="fsm">Generate FSM</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="modal-label" for="copilotDescription">Description / Spec</label>
+          <textarea class="text-input" id="copilotDescription" placeholder="An 8-bit synchronous up-counter with active-low reset and an enable input."></textarea>
+        </div>
+        <div class="run-row">
+          <button class="btn btn-copper" id="runCopilotBtn">Generate</button>
+          <span class="status-line" id="copilotStatusLine"></span>
+        </div>
+      </div>
+      <div class="panel results" id="copilotResultsPanel">
+        <h2>Result</h2>
+        <div class="result-meta" id="copilotMeta"></div>
+        <div class="result-block" id="copilotResultBlock"></div>
+      </div>
+    </div>
+
+    <div class="tool-panel" id="panel-cloud">
+      <div class="api-base-note">
+        Phase 6 (Cloud API) base:
+        <input type="text" id="phase6ApiBase" placeholder="https://chip-studio-api.onrender.com">
+      </div>
+      <p style="color:var(--paper-dim); font-size:13px; margin-bottom:18px; max-width:640px;">
+        Phase 6 has its own separate account system (its own database, its own login) --
+        it does <strong style="color:var(--paper);">not</strong> share the account you used
+        for AI Lint above. Log in or create a Phase 6 account below.
+      </p>
+
+      <div class="panel" id="phase6AuthPanel">
+        <h2 id="phase6AuthTitle">Phase 6 Login</h2>
+        <div class="modal-error" id="phase6AuthError" style="display:none;"></div>
+        <div class="two-col">
+          <div class="field-row">
+            <label class="modal-label" for="phase6Email">Email</label>
+            <input class="text-input" type="email" id="phase6Email">
+          </div>
+          <div class="field-row">
+            <label class="modal-label" for="phase6Password">Password <span class="modal-hint">(12+ chars to sign up)</span></label>
+            <input class="text-input" type="password" id="phase6Password" minlength="12">
+          </div>
+        </div>
+        <div class="run-row">
+          <button class="btn btn-copper" id="phase6LoginBtn">Log In</button>
+          <button class="btn btn-outline" id="phase6SignupBtn">Sign Up Instead</button>
+          <span class="status-line" id="phase6AuthStatus"></span>
+        </div>
+      </div>
+
+      <div class="panel" id="phase6WorkPanel" style="display:none;">
+        <h2>Project</h2>
+        <div id="phase6LoggedInAs" style="font-family:var(--mono); font-size:12.5px; color:var(--sage-bright); margin-bottom:16px;"></div>
+        <div class="field-row">
+          <label class="modal-label" for="phase6ProjectSelect">Project</label>
+          <select class="text-input" id="phase6ProjectSelect"></select>
+        </div>
+        <div class="run-row" style="margin-top:0;">
+          <input class="text-input" type="text" id="phase6NewProjectName" placeholder="New project name…" style="max-width:240px;">
+          <button class="btn btn-outline" id="phase6CreateProjectBtn">Create Project</button>
+        </div>
+
+        <h2 style="margin-top:28px;">Submit Job</h2>
+        <div class="dropzone" id="dropzonePhase6">
+          <div class="dz-icon">⤓</div>
+          <p><strong>Click to browse</strong> or drag a .v / .sv / .zip file here</p>
+        </div>
+        <input type="file" id="phase6FileInput" accept=".v,.sv,.zip">
+        <div id="phase6FileChipHolder"></div>
+        <div class="field-row" style="margin-top:16px;">
+          <label class="modal-label" for="phase6JobType">Job Type</label>
+          <select class="text-input" id="phase6JobType">
+            <option value="lint">Lint</option>
+            <option value="bugdetect">Bug Detect</option>
+            <option value="simulate">Simulate</option>
+            <option value="coverage">Coverage</option>
+            <option value="formal">Formal (paid tier only)</option>
+            <option value="synthesis">Synthesis (paid tier only)</option>
+            <option value="physical_design">Physical Design (paid tier only)</option>
+          </select>
+        </div>
+        <div class="run-row">
+          <button class="btn btn-copper" id="phase6SubmitJobBtn" disabled>Submit Job</button>
+          <span class="status-line" id="phase6JobStatus"></span>
+        </div>
+      </div>
+
+      <div class="panel results" id="phase6ResultsPanel" style="display:none;">
+        <h2>Result</h2>
+        <div id="phase6ResultBlock" class="result-block"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loginGate" class="login-gate" style="display:none;">
+  <h2>You're not logged in</h2>
+  <p>Head back to the homepage and log in or create a free account to use the console.</p>
+  <a class="btn btn-copper" href="index.html">Back to Home</a>
+</div>
+
+<script>
+function getApiBase() { return localStorage.getItem('aics_api_base') || ''; }
+function getToken() { return localStorage.getItem('aics_token'); }
+function clearToken() { localStorage.removeItem('aics_token'); }
+
+const apiBase = getApiBase();
+const token = getToken();
+
+if (!token || !apiBase) {
+  document.getElementById('loginGate').style.display = 'block';
+} else {
+  document.getElementById('gatedContent').style.display = 'block';
+  initConsole();
+}
+
+function authHeaders(extra) {
+  return Object.assign({ 'Authorization': `Bearer ${token}` }, extra || {});
+}
+
+async function initConsole() {
+  // Header: show current user + tier, fetched from /auth/me
+  try {
+    const resp = await fetch(`${apiBase}/auth/me`, { headers: authHeaders() });
+    if (resp.status === 401) { clearToken(); location.href = 'index.html'; return; }
+    const user = await resp.json();
+    document.getElementById('headerRight').innerHTML = `
+      <span>${user.email}</span>
+      <span class="tier-badge">${user.tier}</span>
+      <span class="logout-link" id="logoutLink">Log Out</span>
+    `;
+    document.getElementById('logoutLink').addEventListener('click', () => {
+      clearToken();
+      location.href = 'index.html';
+    });
+  } catch (e) {
+    console.error('Failed to load user info', e);
+  }
+
+  // Upload + lint flow
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileChipHolder = document.getElementById('fileChipHolder');
+  const projectNameInput = document.getElementById('projectNameInput');
+  const runBtn = document.getElementById('runLintBtn');
+  const statusLine = document.getElementById('statusLine');
+  const resultsPanel = document.getElementById('resultsPanel');
+  const issuesList = document.getElementById('issuesList');
+
+  let selectedFile = null;
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setFile(fileInput.files[0]);
+  });
+
+  function setFile(file) {
+    selectedFile = file;
+    fileChipHolder.innerHTML = `<div class="file-chip"><span>${file.name}</span><span class="remove" id="removeFileBtn">&times;</span></div>`;
+    document.getElementById('removeFileBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      fileChipHolder.innerHTML = '';
+      updateRunButton();
+    });
+    if (!projectNameInput.value) {
+      projectNameInput.value = file.name.replace(/\.(v|sv|zip)$/i, '');
+    }
+    updateRunButton();
+  }
+
+  function updateRunButton() {
+    runBtn.disabled = !(selectedFile && projectNameInput.value.trim());
+  }
+  projectNameInput.addEventListener('input', updateRunButton);
+
+  function setStatus(text, kind) {
+    statusLine.textContent = text;
+    statusLine.className = 'status-line' + (kind ? ' ' + kind : '');
+  }
+
+  runBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    runBtn.disabled = true;
+    resultsPanel.classList.remove('show');
+    setStatus('Uploading project…');
+
+    try {
+      // 1. Create project (multipart/form-data: name + file)
+      const formData = new FormData();
+      formData.append('name', projectNameInput.value.trim());
+      formData.append('file', selectedFile);
+
+      const createResp = await fetch(`${apiBase}/projects`, {
+        method: 'POST',
+        headers: authHeaders(), // do NOT set Content-Type -- browser sets the multipart boundary
+        body: formData,
+      });
+      if (!createResp.ok) {
+        const err = await createResp.json().catch(() => ({}));
+        throw new Error(err.detail || `Project upload failed (${createResp.status})`);
+      }
+      const project = await createResp.json();
+
+      // 2. Trigger AI lint (returns a job, runs in background)
+      setStatus('Running AI lint…');
+      const lintResp = await fetch(`${apiBase}/projects/${project.id}/lint/run`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
+      if (!lintResp.ok) {
+        const err = await lintResp.json().catch(() => ({}));
+        throw new Error(err.detail || `Lint request failed (${lintResp.status})`);
+      }
+      const job = await lintResp.json();
+
+      // 3. Poll for the result
+      const result = await pollJob(job.id);
+      renderResults(result);
+      setStatus('Done.', 'success');
+    } catch (err) {
+      setStatus(err.message || 'Something went wrong.', 'error');
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  async function pollJob(jobId, attempt = 0) {
+    if (attempt > 40) throw new Error('Timed out waiting for the job to finish.');
+    const resp = await fetch(`${apiBase}/jobs/${jobId}/result`, { headers: authHeaders() });
+    if (!resp.ok) throw new Error(`Failed to fetch job result (${resp.status})`);
+    const data = await resp.json();
+    if (data.status === 'success') return data;
+    if (data.status === 'failure') throw new Error(data.error_message || 'The job failed.');
+    setStatus(`Running AI lint… (${data.status})`);
+    await new Promise(r => setTimeout(r, 1500));
+    return pollJob(jobId, attempt + 1);
+  }
+
+  function renderResults(jobResult) {
+    resultsPanel.classList.add('show');
+    // result_json shape depends on job_type -- for ai_lint this is
+    // expected to be either a single AILintResult-shaped dict or a
+    // per-file dict of them. Handle both defensively since this is the
+    // first real frontend consumer of this endpoint.
+    const result = jobResult.result;
+    let issues = [];
+    if (Array.isArray(result?.issues)) {
+      issues = result.issues;
+    } else if (result && typeof result === 'object') {
+      // Per-file map: { "path/to/file.v": { issues: [...] }, ... }
+      Object.entries(result).forEach(([path, fileResult]) => {
+        (fileResult.issues || []).forEach(issue => issues.push(Object.assign({ file: path }, issue)));
+      });
+    }
+
+    if (!issues.length) {
+      issuesList.innerHTML = '<div class="empty-state">No issues found. Clean RTL.</div>';
+      return;
+    }
+
+    issuesList.innerHTML = issues.map(issue => `
+      <div class="issue">
+        <span class="sev-tag sev-${issue.severity || 'warning'}">${issue.severity || 'warning'}</span>
+        <span class="msg">
+          ${issue.message || ''}
+          <span class="line-no">${issue.file ? issue.file + ':' : ''}line ${issue.line ?? '?'}</span>
+        </span>
+        <span class="status-pill ${issue.status || 'predicted'}">${issue.status || 'predicted'}</span>
+      </div>
+    `).join('');
+  }
+
+  initToolTabs();
+  initSynthesisPanel();
+  initPdPanel();
+  initCopilotPanel();
+  initCloudPanel();
+}
+
+// ---------- Tab switching ----------
+function initToolTabs() {
+  const tabs = document.querySelectorAll('.tool-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+    });
+  });
+}
+
+// Each phase (3/4/5) is a separate Flask service with its own URL --
+// independent of phase1's /auth/me-gated API base used by the Lint tab.
+// Saved per-service in localStorage so a user only has to paste each
+// once.
+function getPhaseApiBase(key) { return localStorage.getItem(key) || ''; }
+function savePhaseApiBase(key, val) { localStorage.setItem(key, val.trim().replace(/\/+$/, '')); }
+
+// ---------- Synthesis (Phase 3) ----------
+function initSynthesisPanel() {
+  const apiInput = document.getElementById('phase3ApiBase');
+  apiInput.value = getPhaseApiBase('aics_phase3_base');
+  apiInput.addEventListener('change', () => savePhaseApiBase('aics_phase3_base', apiInput.value));
+
+  const dropzone = document.getElementById('dropzoneSynth');
+  const fileInput = document.getElementById('synthFileInput');
+  const chipHolder = document.getElementById('synthFileChipHolder');
+  const topModuleInput = document.getElementById('synthTopModule');
+  const runBtn = document.getElementById('runSynthBtn');
+  const statusLine = document.getElementById('synthStatusLine');
+  const resultBlock = document.getElementById('synthResultBlock');
+
+  let selectedFile = null;
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) setSynthFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setSynthFile(fileInput.files[0]);
+  });
+
+  function setSynthFile(file) {
+    selectedFile = file;
+    chipHolder.innerHTML = `<div class="file-chip"><span>${file.name}</span><span class="remove" id="removeSynthFileBtn">&times;</span></div>`;
+    document.getElementById('removeSynthFileBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      chipHolder.innerHTML = '';
+      runBtn.disabled = true;
+    });
+    runBtn.disabled = false;
+  }
+
+  runBtn.addEventListener('click', async () => {
+    const apiBase = apiInput.value.trim().replace(/\/+$/, '');
+    if (!apiBase) { statusLine.textContent = 'Set the Phase 3 API base URL above first.'; statusLine.className = 'status-line error'; return; }
+    if (!selectedFile) return;
+    savePhaseApiBase('aics_phase3_base', apiBase);
+
+    runBtn.disabled = true;
+    statusLine.textContent = 'Running synthesis…';
+    statusLine.className = 'status-line';
+    resultBlock.innerHTML = '';
+
+    try {
+      const formData = new FormData();
+      formData.append('rtl_file', selectedFile);
+      if (topModuleInput.value.trim()) formData.append('top_module', topModuleInput.value.trim());
+
+      const resp = await fetch(`${apiBase}/api/synthesize`, { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || `Synthesis failed (${resp.status})`);
+
+      statusLine.textContent = data.status || 'Done.';
+      statusLine.className = 'status-line success';
+      resultBlock.innerHTML = `<pre style="font-family:var(--mono); font-size:12.5px; white-space:pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+    } catch (err) {
+      statusLine.textContent = err.message;
+      statusLine.className = 'status-line error';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+}
+
+// ---------- Physical Design (Phase 4) ----------
+// Unlike Lint/Synthesis, this stage takes server-side filesystem paths,
+// not a browser file upload -- see the panel's own explanatory text.
+// Free-tier deployments don't have OpenROAD installed at all (RAM cost
+// far exceeds free tier), so a real run is expected to fail there; this
+// still reaches the API and surfaces whatever it says rather than
+// pretending the limitation doesn't exist.
+function initPdPanel() {
+  const apiInput = document.getElementById('phase4ApiBase');
+  apiInput.value = getPhaseApiBase('aics_phase4_base');
+  apiInput.addEventListener('change', () => savePhaseApiBase('aics_phase4_base', apiInput.value));
+
+  const runBtn = document.getElementById('runPdBtn');
+  const statusLine = document.getElementById('pdStatusLine');
+  const resultBlock = document.getElementById('pdResultBlock');
+
+  runBtn.addEventListener('click', async () => {
+    const apiBase = apiInput.value.trim().replace(/\/+$/, '');
+    if (!apiBase) { statusLine.textContent = 'Set the Phase 4 API base URL above first.'; statusLine.className = 'status-line error'; return; }
+    savePhaseApiBase('aics_phase4_base', apiBase);
+
+    const netlistPath = document.getElementById('pdNetlistPath').value.trim();
+    const sdcPath = document.getElementById('pdSdcPath').value.trim();
+    const pdk = document.getElementById('pdPdk').value.trim() || 'sky130';
+
+    if (!netlistPath || !sdcPath) {
+      statusLine.textContent = 'Netlist Path and SDC Path are both required.';
+      statusLine.className = 'status-line error';
+      return;
+    }
+
+    runBtn.disabled = true;
+    statusLine.textContent = 'Running physical design…';
+    statusLine.className = 'status-line';
+    resultBlock.innerHTML = '';
+
+    try {
+      const resp = await fetch(`${apiBase}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ netlist_path: netlistPath, sdc: sdcPath, pdk }),
+      });
+      const data = await resp.json();
+      statusLine.textContent = data.success ? 'Done.' : (data.error || `Failed (${resp.status})`);
+      statusLine.className = 'status-line ' + (data.success ? 'success' : 'error');
+      resultBlock.innerHTML = `<pre style="font-family:var(--mono); font-size:12.5px; white-space:pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+    } catch (err) {
+      statusLine.textContent = err.message;
+      statusLine.className = 'status-line error';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+}
+
+// ---------- AI Copilot (Phase 5) ----------
+function initCopilotPanel() {
+  const apiInput = document.getElementById('phase5ApiBase');
+  apiInput.value = getPhaseApiBase('aics_phase5_base');
+  apiInput.addEventListener('change', () => savePhaseApiBase('aics_phase5_base', apiInput.value));
+
+  const runBtn = document.getElementById('runCopilotBtn');
+  const statusLine = document.getElementById('copilotStatusLine');
+  const meta = document.getElementById('copilotMeta');
+  const resultBlock = document.getElementById('copilotResultBlock');
+
+  runBtn.addEventListener('click', async () => {
+    const apiBase = apiInput.value.trim().replace(/\/+$/, '');
+    if (!apiBase) { statusLine.textContent = 'Set the Phase 5 API base URL above first.'; statusLine.className = 'status-line error'; return; }
+    savePhaseApiBase('aics_phase5_base', apiBase);
+
+    const task = document.getElementById('copilotTask').value;
+    const description = document.getElementById('copilotDescription').value.trim();
+    if (!description) {
+      statusLine.textContent = 'Description / spec is required.';
+      statusLine.className = 'status-line error';
+      return;
+    }
+
+    runBtn.disabled = true;
+    statusLine.textContent = 'Generating…';
+    statusLine.className = 'status-line';
+    meta.innerHTML = '';
+    resultBlock.textContent = '';
+
+    try {
+      const resp = await fetch(`${apiBase}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task, description }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || `Generation failed (${resp.status})`);
+
+      statusLine.textContent = 'Done.';
+      statusLine.className = 'status-line success';
+      meta.innerHTML = `
+        <span class="tag">kind: ${data.kind || task}</span>
+        <span class="tag ${data.status === 'verified' ? 'ok' : ''}">${data.status || 'generated'}</span>
+      `;
+      resultBlock.textContent = data.code || '';
+    } catch (err) {
+      statusLine.textContent = err.message;
+      statusLine.className = 'status-line error';
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+}
+
+// ---------- Cloud API (Phase 6) ----------
+// Phase 6 has its own entirely separate account system (own Postgres
+// database, own JWT secret, own argon2 password hashing) -- it is NOT
+// the same login as phase1's /auth/me-gated console. Token stored under
+// a different localStorage key for exactly that reason.
+function getPhase6Token() { return localStorage.getItem('aics_phase6_token'); }
+function savePhase6Token(t) { localStorage.setItem('aics_phase6_token', t); }
+function clearPhase6Token() { localStorage.removeItem('aics_phase6_token'); }
+
+function initCloudPanel() {
+  const apiInput = document.getElementById('phase6ApiBase');
+  apiInput.value = getPhaseApiBase('aics_phase6_base');
+  apiInput.addEventListener('change', () => savePhaseApiBase('aics_phase6_base', apiInput.value));
+
+  const authPanel = document.getElementById('phase6AuthPanel');
+  const authTitle = document.getElementById('phase6AuthTitle');
+  const authError = document.getElementById('phase6AuthError');
+  const authStatus = document.getElementById('phase6AuthStatus');
+  const emailInput = document.getElementById('phase6Email');
+  const passwordInput = document.getElementById('phase6Password');
+  const loginBtn = document.getElementById('phase6LoginBtn');
+  const signupBtn = document.getElementById('phase6SignupBtn');
+
+  const workPanel = document.getElementById('phase6WorkPanel');
+  const loggedInAs = document.getElementById('phase6LoggedInAs');
+  const projectSelect = document.getElementById('phase6ProjectSelect');
+  const newProjectName = document.getElementById('phase6NewProjectName');
+  const createProjectBtn = document.getElementById('phase6CreateProjectBtn');
+
+  const dropzone = document.getElementById('dropzonePhase6');
+  const fileInput = document.getElementById('phase6FileInput');
+  const fileChipHolder = document.getElementById('phase6FileChipHolder');
+  const jobTypeSelect = document.getElementById('phase6JobType');
+  const submitJobBtn = document.getElementById('phase6SubmitJobBtn');
+  const jobStatus = document.getElementById('phase6JobStatus');
+  const resultsPanel = document.getElementById('phase6ResultsPanel');
+  const resultBlock = document.getElementById('phase6ResultBlock');
+
+  let selectedFile = null;
+  let signupMode = false;
+
+  function apiBase() { return apiInput.value.trim().replace(/\/+$/, ''); }
+
+  function showAuthError(msg) { authError.textContent = msg; authError.style.display = 'block'; }
+  function hideAuthError() { authError.style.display = 'none'; }
+
+  function showLoggedIn(email) {
+    authPanel.style.display = 'none';
+    workPanel.style.display = 'block';
+    loggedInAs.textContent = `Logged in as ${email} (Phase 6)`;
+    loadProjects();
+  }
+  function showLoggedOut() {
+    authPanel.style.display = 'block';
+    workPanel.style.display = 'none';
+    resultsPanel.style.display = 'none';
+  }
+
+  // If we already have a phase6 token, assume it's valid and show the
+  // work panel directly -- phase6 has no /auth/me-style endpoint to
+  // verify against, so the first real signal of an expired/bad token is
+  // a 401 from /projects, handled by apiFetch below.
+  if (getPhase6Token()) {
+    showLoggedIn('(stored session)');
+  } else {
+    showLoggedOut();
+  }
+
+  signupBtn.addEventListener('click', () => {
+    signupMode = !signupMode;
+    authTitle.textContent = signupMode ? 'Phase 6 Sign Up' : 'Phase 6 Login';
+    loginBtn.textContent = signupMode ? 'Create Account' : 'Log In';
+    signupBtn.textContent = signupMode ? 'Log In Instead' : 'Sign Up Instead';
+    hideAuthError();
+  });
+
+  loginBtn.addEventListener('click', async () => {
+    const base = apiBase();
+    if (!base) { showAuthError('Set the Phase 6 API base URL above first.'); return; }
+    savePhaseApiBase('aics_phase6_base', base);
+
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    hideAuthError();
+    authStatus.textContent = signupMode ? 'Creating account…' : 'Logging in…';
+    loginBtn.disabled = true;
+
+    try {
+      if (signupMode) {
+        // POST /auth/register: JSON, {email, password} -- password needs
+        // 12+ chars per phase6's zod schema (stricter than phase1's).
+        const registerResp = await fetch(`${base}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const registerData = await registerResp.json();
+        if (!registerResp.ok || !registerData.success) {
+          throw new Error(registerData.error?.formErrors?.[0] || registerData.error || `Sign up failed (${registerResp.status})`);
+        }
+      }
+
+      const loginResp = await fetch(`${base}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginResp.json();
+      if (!loginResp.ok || !loginData.success) {
+        throw new Error(loginData.error || `Log in failed (${loginResp.status})`);
+      }
+
+      savePhase6Token(loginData.data.token);
+      authStatus.textContent = '';
+      showLoggedIn(email);
+    } catch (err) {
+      showAuthError(err.message || 'Something went wrong.');
+      authStatus.textContent = '';
+    } finally {
+      loginBtn.disabled = false;
+    }
+  });
+
+  async function phase6Fetch(path, options = {}) {
+    const base = apiBase();
+    const resp = await fetch(`${base}${path}`, {
+      ...options,
+      headers: { ...(options.headers || {}), 'Authorization': `Bearer ${getPhase6Token()}` },
+    });
+    if (resp.status === 401) {
+      clearPhase6Token();
+      showLoggedOut();
+      throw new Error('Session expired -- please log in again.');
+    }
+    return resp;
+  }
+
+  async function loadProjects() {
+    try {
+      const resp = await phase6Fetch('/projects');
+      const data = await resp.json();
+      if (!data.success) throw new Error(data.error || 'Failed to load projects');
+      projectSelect.innerHTML = data.data.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+        || '<option value="">No projects yet -- create one below</option>';
+    } catch (err) {
+      jobStatus.textContent = err.message;
+      jobStatus.className = 'status-line error';
+    }
+  }
+
+  createProjectBtn.addEventListener('click', async () => {
+    const name = newProjectName.value.trim();
+    if (!name) return;
+    createProjectBtn.disabled = true;
+    try {
+      const resp = await phase6Fetch('/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || `Create project failed (${resp.status})`);
+      newProjectName.value = '';
+      await loadProjects();
+      projectSelect.value = data.data.id;
+    } catch (err) {
+      jobStatus.textContent = err.message;
+      jobStatus.className = 'status-line error';
+    } finally {
+      createProjectBtn.disabled = false;
+    }
+  });
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) setPhase6File(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) setPhase6File(fileInput.files[0]);
+  });
+
+  function setPhase6File(file) {
+    selectedFile = file;
+    fileChipHolder.innerHTML = `<div class="file-chip"><span>${file.name}</span><span class="remove" id="removePhase6FileBtn">&times;</span></div>`;
+    document.getElementById('removePhase6FileBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      fileChipHolder.innerHTML = '';
+      submitJobBtn.disabled = true;
+    });
+    submitJobBtn.disabled = false;
+  }
+
+  submitJobBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    const projectId = projectSelect.value;
+    if (!projectId) {
+      jobStatus.textContent = 'Create or select a project first.';
+      jobStatus.className = 'status-line error';
+      return;
+    }
+
+    submitJobBtn.disabled = true;
+    jobStatus.textContent = 'Submitting job…';
+    jobStatus.className = 'status-line';
+    resultsPanel.style.display = 'none';
+
+    try {
+      const formData = new FormData();
+      formData.append('type', jobTypeSelect.value);
+      formData.append('file', selectedFile);
+
+      const resp = await phase6Fetch(`/projects/${projectId}/jobs`, {
+        method: 'POST',
+        body: formData, // no Content-Type -- browser sets the multipart boundary
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || `Job submission failed (${resp.status})`);
+      }
+
+      jobStatus.textContent = `Status: ${data.data.status}`;
+      jobStatus.className = 'status-line success';
+      resultsPanel.style.display = 'block';
+      resultBlock.textContent = JSON.stringify(data.data, null, 2);
+    } catch (err) {
+      jobStatus.textContent = err.message;
+      jobStatus.className = 'status-line error';
+    } finally {
+      submitJobBtn.disabled = false;
+    }
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+# =====================================================
+# AI Chip Studio — Phase 6 — API / Worker Image (free-tier mode)
+#
+# Node.js + Express + TypeScript cloud API. This same image also runs the
+# light/heavy job-dispatch logic (lightWorker.ts / heavyWorker.ts) -- but
+# unlike the original design, it does NOT spawn separate Docker
+# containers per job via dockerode/docker.sock. Free-tier PaaS hosting
+# (Render, Fly.io, Railway) doesn't grant a hosted container access to the
+# host's Docker daemon, for the same sandbox-escape reason none of them
+# let you do `docker run` from inside your own container.
+#
+# Instead, Verilator/Yosys/SymbiYosys+Boolector are installed directly
+# into THIS image (same tools, same versions as phase2's eda-backend
+# Dockerfile, so light-job behavior matches what's already proven to work
+# on Render free tier there), and services/localJobRunner.ts runs them as
+# plain child_process calls. See localJobRunner.ts's header comment for
+# what this trades away (per-job isolation, hard CPU/memory caps) versus
+# the original per-job-container design in services/dockerManager.ts
+# (kept, deprecated, as a reference for a future paid-tier rewrite).
+#
+# OpenROAD is intentionally NOT installed here -- it needs several GB of
+# RAM per run, far beyond what's available even on Render's smallest paid
+# instance types, let alone free. physical_design jobs are paid-tier-only
+# at the API level (see jobRoutes.ts's tier guard) specifically so this
+# image never needs to actually run OpenROAD. If/when you have a real VM
+# sized for it, that's a separate heavy-pool image/deployment, not this one.
+# =====================================================
+
+FROM node:20-slim AS build
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+
+RUN npm run build
+
+# ---- Runtime stage ----
+
+FROM node:20-slim
+
+ENV NODE_ENV=production
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Same light-pool tools as phase2/eda-backend/Dockerfile: Verilator + Yosys
+# from apt (fast, reliable), Boolector + SymbiYosys built from source for
+# the 'formal'/'bugdetect' job types' BMC/lint-enhancement paths.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    ca-certificates \
+    build-essential \
+    cmake \
+    verilator \
+    yosys \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN verilator --version && yosys -V
+
+RUN git clone --depth 1 https://github.com/boolector/boolector.git /tmp/boolector \
+    && cd /tmp/boolector \
+    && ./contrib/setup-lingeling.sh \
+    && ./contrib/setup-btor2tools.sh \
+    && ./configure.sh \
+    && cd build \
+    && make -j$(nproc) \
+    && make install \
+    && rm -rf /tmp/boolector
+
+RUN pip3 install --no-cache-dir --break-system-packages sby || pip3 install --no-cache-dir sby
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/dist ./dist
+
+EXPOSE 3001
+
+LABEL maintainer="AI Chip Studio"
+LABEL pool="api"
+
+CMD ["node", "dist/index.js"]

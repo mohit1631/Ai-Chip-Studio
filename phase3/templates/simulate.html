@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Simulate</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Simulation Engine</h2>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap">Tech Map</a>
+    <a href="/simulate" class="active">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="panel">
+    <form action="/simulate" method="post" enctype="multipart/form-data">
+      <label for="rtl_file">RTL design file or ZIP project</label>
+      <input type="file" id="rtl_file" name="rtl_file" accept=".v,.sv,.zip" required>
+      <div class="hint">.v / .sv or .zip multi-file project</div>
+
+      <label for="tb_file">Testbench file</label>
+      <input type="file" id="tb_file" name="tb_file" accept=".v,.sv" required>
+      <div class="hint">Must be a .v or .sv file containing the testbench module</div>
+
+      <label for="top_module">Top (testbench) module <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="top_module" name="top_module" placeholder="auto-detect if blank">
+
+      <label for="engine">Simulator</label>
+      <select id="engine" name="engine">
+        <option value="icarus">Icarus Verilog (iverilog) — broader language support</option>
+        <option value="verilator">Verilator — faster, SystemVerilog focused</option>
+      </select>
+
+      <button type="submit">▶ Run Simulation</button>
+    </form>
+  </div>
+
+  <div style="color:var(--muted);font-size:.8rem;margin-top:1.5rem">
+    RTL + Testbench → iverilog / Verilator → VCD Waveform + Assertion Results
+  </div>
+</div>
+</body>
+</html>

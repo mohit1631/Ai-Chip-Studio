@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Tech Map</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Sprint 3 — Technology Mapping</h2>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap" class="active">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="panel">
+    <form action="/techmap" method="post" enctype="multipart/form-data">
+      <label for="rtl_file">RTL file or ZIP project</label>
+      <input type="file" id="rtl_file" name="rtl_file" accept=".v,.sv,.zip" required>
+      <div class="hint">.v / .sv single file, or a .zip multi-file project</div>
+
+      <label for="liberty_file">Liberty file (.lib) <span style="color:var(--muted)">(optional — generic flow if blank)</span></label>
+      <input type="file" id="liberty_file" name="liberty_file" accept=".lib">
+      <div class="hint">Provide a PDK Liberty file for standard-cell mapping (e.g. sky130_fd_sc_hd__tt_025C_1v80.lib)</div>
+
+      <label for="top_module">Top module <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="top_module" name="top_module" placeholder="auto-detect if blank">
+
+      <button type="submit">▶ Run Tech Map</button>
+    </form>
+  </div>
+
+  <div style="color:var(--muted);font-size:.8rem;margin-top:1.5rem">
+    RTL → Yosys synth → ABC (abc -liberty) → Mapped Netlist
+  </div>
+</div>
+</body>
+</html>

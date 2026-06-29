@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Result</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  <div style="font-size:1.5rem;margin-bottom:1.5rem;color:{{ 'var(--good)' if result.success else 'var(--bad)' }}">
+    {{ output.status }}
+  </div>
+
+  <div class="panel">
+    {% if result.success %}
+      <div class="row"><span class="k">Job ID</span><span>{{ job_id }}</span></div>
+      <div class="row"><span class="k">Top Module</span><span>{{ result.top_module }}</span></div>
+      <div class="row"><span class="k">RTL Files</span><span>{{ result.rtl_files|length }}</span></div>
+      <div class="row" style="margin-top:.5rem"><span class="k">Generated Files</span></div>
+      <ul class="files">
+        {% for f in output.generated_files %}
+          <li><a href="/jobs/{{ job_id }}/{{ f }}">⬇ {{ f }}</a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p style="color:var(--bad);margin:0 0 .75rem">{{ output.error }}</p>
+      {% if output.log_file %}
+        <ul class="files">
+          <li><a href="/jobs/{{ job_id }}/{{ output.log_file }}">⬇ {{ output.log_file }}</a></li>
+        </ul>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if result.success %}
+  <a class="btn" href="/analyze/{{ job_id }}" style="margin-right:.75rem">📊 Run Analysis</a>
+  {% endif %}
+  <a class="back" href="/">← Run another synthesis</a>
+</div>
+</body>
+</html>

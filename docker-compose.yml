@@ -1,0 +1,166 @@
+version: "3.9"
+
+# ============================================================
+# AI Chip Studio — ALL 6 PHASES
+# Sirf ek command: docker-compose up -d
+# ============================================================
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: chipstudio
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chipstudio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chipstudio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Phase 1 — Core Platform (FastAPI) ──────────────────────
+  # URL: http://localhost:8000/docs
+
+  phase1:
+    build:
+      context: ./phase1
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      AICHIP_ENVIRONMENT: production
+      AICHIP_AI_PROVIDER: gemini
+      AICHIP_GEMINI_API_KEY: ${GEMINI_API_KEY}
+      AICHIP_GEMINI_MODEL: gemini-2.0-flash
+      AICHIP_DATABASE_URL: postgresql://chipstudio:password@postgres:5432/chipstudio
+      AICHIP_REDIS_URL: redis://redis:6379/0
+      AICHIP_CELERY_TASK_ALWAYS_EAGER: "false"
+      AICHIP_STORAGE_BACKEND: local
+      AICHIP_STORAGE_ROOT: /app/storage
+      AICHIP_AUTO_CREATE_TABLES: "true"
+      AICHIP_JWT_SECRET_KEY: ${AICHIP_JWT_SECRET_KEY}
+      AICHIP_RATE_LIMIT_DEFAULT: "60/minute"
+      AICHIP_RATE_LIMIT_LOGIN: "5/minute"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - phase1_storage:/app/storage
+      - phase1_jobs:/app/jobs
+
+  # ── Phase 2 — Verification Studio (Node.js) ────────────────
+  # URL: http://localhost:8080
+
+  phase2:
+    build:
+      context: ./phase2/eda-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+
+  # ── Phase 3 — Synthesis Studio (Flask) ─────────────────────
+  # URL: http://localhost:5000
+
+  phase3:
+    build:
+      context: ./phase3
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: gemini-2.0-flash
+      PORT: "5000"
+    volumes:
+      - phase3_jobs:/app/jobs
+      - phase3_uploads:/app/uploads
+
+  # ── Phase 4 — Physical Design (Python/Flask) ───────────────
+  # URL: http://localhost:8004
+
+  phase4:
+    build:
+      context: ./phase4
+      dockerfile: Dockerfile
+      # Set to "1" to skip the FreePDK45 git clone at build time (e.g. if
+      # you only run sky130/gf180mcu jobs and supply tech_lef/cell_lef/
+      # liberty paths explicitly on every request).
+      args:
+        SKIP_FREEPDK45: "0"
+    ports:
+      - "8004:8004"
+    environment:
+      PORT: "8004"
+      # Must match where the Dockerfile clones FreePDK45 to (/pdk/freepdk45).
+      # Only matters for presets with a known on-disk layout in
+      # pdk_presets.py (currently just freepdk45) -- sky130/gf180mcu jobs
+      # need tech_lef/cell_lef/liberty supplied explicitly regardless.
+      AICHIP_PDK_ROOT: /pdk
+
+  # ── Phase 5 — AI Copilot (Flask) ───────────────────────────
+  # URL: http://localhost:8005
+
+  phase5:
+    build:
+      context: ./phase5
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: gemini-2.0-flash
+      PORT: "8005"
+
+  # ── Phase 6 — Cloud API (Node.js/TypeScript) ───────────────
+  # URL: http://localhost:3001/health
+
+  phase6-api:
+    build:
+      context: ./phase6
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: "3001"
+      DATABASE_URL: postgresql://chipstudio:password@postgres:5432/chipstudio
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-this-in-production
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  phase1_storage:
+  phase1_jobs:
+  phase3_jobs:
+  phase3_uploads:

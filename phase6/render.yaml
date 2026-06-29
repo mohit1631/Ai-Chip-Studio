@@ -1,0 +1,86 @@
+# =====================================================
+# AI Chip Studio — Phase 6 — Render Deployment (FREE TIER)
+#
+# Render free instance types are ONLY: Web Service, Static Site, Postgres,
+# Key Value. There is no free Background Worker -- so this no longer
+# defines separate light-worker/heavy-worker services at all. Instead:
+#   - PROCESS_JOBS_INLINE=true makes jobRoutes.ts run jobs synchronously,
+#     in-request, calling processLightJob()/processHeavyJob() directly
+#     (see api/jobRoutes.ts's header comment).
+#   - heavyWorker/lightWorker's BullMQ Worker constructors are skipped
+#     entirely in this mode (see workers/lightWorker.ts, heavyWorker.ts)
+#     -- no Redis connection is even attempted.
+#   - physical_design/synthesis/formal ("heavy pool") jobs are blocked for
+#     free-tier users at the API level regardless (jobRoutes.ts), since
+#     OpenROAD/Yosys synthesis needs multiple GB of RAM that a free
+#     instance doesn't have. Only light jobs (lint/bugdetect/simulate/
+#     coverage) actually run on this free deployment.
+#
+# Free Postgres expires 30 days after creation (14-day grace period after
+# that). Free Key Value gives 25MB memory / 50 connections -- fine here
+# since nothing on the free path actually needs Redis (PROCESS_JOBS_INLINE
+# skips it), but the keyvalue service below is defined anyway in case you
+# want session/cache use later, or to make flipping PROCESS_JOBS_INLINE to
+# false later (once you're on a paid tier) a config change, not a rebuild.
+#
+# NOT on Render (same as before):
+#   - Ollama (GPU required) -- if OLLAMA_HOST isn't reachable,
+#     aiService.ts's OLLAMA_FALLBACK_ENABLED=true path falls back to the
+#     hosted Anthropic API instead. Set ANTHROPIC_API_KEY manually.
+#
+# Deploy steps:
+#   1. This file lives at phase6/render.yaml -- if deploying phase6 as
+#      part of the same Blueprint as the other phases, merge its
+#      `services`/`databases` entries into the repo-root render.yaml
+#      instead of pointing Render at this file directly (Render only
+#      reads one render.yaml per Blueprint, at the repo root).
+#   2. https://dashboard.render.com -> New -> Blueprint -> connect repo.
+#   3. Set ANTHROPIC_API_KEY, JWT_SECRET (generateValue handles this one
+#      automatically), and ENCRYPTION_KEY (`openssl rand -hex 32`)
+#      manually in the dashboard's Environment tab.
+# =====================================================
+
+databases:
+  - name: chip-studio-db
+    plan: free
+    databaseName: chipstudio
+    user: chipstudio
+
+services:
+  - type: keyvalue
+    name: chip-studio-redis
+    plan: free
+    ipAllowList: []  # private network only, not exposed to the public internet
+
+  - type: web
+    name: chip-studio-api
+    runtime: docker
+    plan: free
+    rootDir: phase6
+    dockerfilePath: ./docker/Dockerfile.api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_JOBS_INLINE
+        value: "true"  # the free-tier load-bearing flag -- see header comment
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chip-studio-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: chip-studio-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false  # set manually: `openssl rand -hex 32`
+      - key: ANTHROPIC_API_KEY
+        sync: false  # set manually -- used as the AI fallback since no Ollama/GPU host is available for free
+      - key: OLLAMA_FALLBACK_ENABLED
+        value: "true"
+      - key: OLLAMA_HOST
+        sync: false  # leave unset on free tier; fallback to Anthropic kicks in automatically
+    autoDeployTrigger: commit

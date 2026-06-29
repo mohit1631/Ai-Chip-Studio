@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio — Dashboard</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Sprint 4 — Synthesis Dashboard</h2>
+  <nav>
+    <a href="/">Synthesis</a>
+    <a href="/techmap">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard" class="active">Dashboard</a>
+  </nav>
+
+  {% if jobs %}
+  <div class="panel" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Job ID</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th style="text-align:right">Cells</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td style="font-size:.82rem;color:var(--muted)">{{ j.job_id }}</td>
+          <td>{{ j.type }}</td>
+          <td class="{{ 'badge-ok' if '✓' in j.status else 'badge-fail' }}">{{ j.status }}</td>
+          <td style="text-align:right">{{ j.cells if j.cells is not none else "—" }}</td>
+          <td>
+            {% if j.type == "Synthesis" and "✓" in j.status %}
+              <a href="/analyze/{{ j.job_id }}" style="color:var(--accent);text-decoration:none;font-size:.82rem">📊 Analyze</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="panel" style="color:var(--muted);text-align:center;padding:2.5rem">
+    No jobs yet — run a synthesis or simulation to see results here.
+  </div>
+  {% endif %}
+
+  <div style="margin-top:1rem;display:flex;gap:.75rem;flex-wrap:wrap">
+    <a class="btn" href="/">New Synthesis</a>
+    <a class="btn btn-ghost" href="/techmap">Tech Map</a>
+    <a class="btn btn-ghost" href="/simulate">Simulate</a>
+  </div>
+</div>
+</body>
+</html>

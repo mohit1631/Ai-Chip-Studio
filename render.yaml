@@ -1,0 +1,215 @@
+# =====================================================
+# AI Chip Studio — Full Blueprint (FREE TIER, all 6 phases)
+# render.yaml — must live at the repo root; Render only reads one
+# render.yaml per Blueprint, found there.
+#
+# BUSINESS MODEL THIS IS BUILT FOR: free trial = 5 jobs/month, light jobs
+# only (lint/bugdetect/simulate/coverage + synthesis on phase3's
+# Yosys-only flow). Heavy jobs needing real OpenROAD/multi-GB RAM
+# (phase6's 'physical_design'/'formal' job types specifically) are
+# blocked for free-tier users at the API level -- see phase6/src/api/
+# jobRoutes.ts. Paying customers fund the eventual upgrade to a paid tier
+# that can actually run those.
+#
+# FREE TIER REALITY CHECK (render.com/docs/free, checked 2026):
+#   - Free instance types: Web Service, Static Site, Postgres, Key Value.
+#     No free Background Worker -- every phase below that would normally
+#     want one (phase1's Celery, phase6's BullMQ workers) instead runs
+#     jobs synchronously in-request. See each service's env vars.
+#   - Free web services spin down after 15 min idle; ~30-60s cold start
+#     on the next request. Expect that delay after quiet periods.
+#   - Free Postgres expires 30 days after creation (14-day grace period).
+#     You will need to recreate/upgrade periodically while on free.
+#   - 500 free build-minutes/month total, shared across every service in
+#     this Blueprint. phase4's Docker build (clones FreePDK45 + builds
+#     OpenROAD-adjacent tooling) and phase6's API image (builds Boolector
+#     from source) are the two heaviest builds here -- if you blow through
+#     the monthly build-minute budget, Render pauses further builds until
+#     next month rather than charging you, per Render's free-tier docs.
+#   - phase4 (OpenROAD) itself needs multiple GB of RAM per real run; even
+#     with a successful build, expect physical-design jobs through phase4
+#     directly to fail/OOM on a free instance's RAM. It's deployed here
+#     because you asked to try all 6 phases, but treat its live deploy as
+#     a "does it boot and respond to /health" check, not "can it run a
+#     real chip through OpenROAD on $0" -- it structurally can't yet.
+#
+# Deploy steps:
+#   1. Push this whole repo to GitHub, this file at the repo ROOT.
+#   2. https://dashboard.render.com -> New -> Blueprint -> connect repo.
+#   3. Render proposes everything below -- click Apply.
+#   4. Set every `sync: false` env var manually in the dashboard
+#      (API keys, encryption keys) -- never commit real secrets here.
+#   5. The frontend (phase2_new_frontend/index.html) stores its API base
+#      URL in the browser's localStorage, set via the "API Base URL"
+#      field inside the login/signup modal -- visit the deployed frontend
+#      URL, open the modal, and paste in ai-chip-studio-phase1's Render
+#      URL once you know it (Render assigns *.onrender.com URLs on first
+#      deploy). The old phase2/public/index.html RTL-checker tool still
+#      exists in the repo and still works the same manual-URL way, but is
+#      no longer the primary frontend service in this Blueprint.
+# =====================================================
+
+databases:
+  - name: ai-chip-studio-db
+    plan: free
+    databaseName: chipstudio
+    user: chipstudio
+
+  - name: chip-studio-db
+    plan: free
+    databaseName: chipstudio6
+    user: chipstudio6
+
+services:
+  # ---- Phase 1 — FastAPI backend (auth, projects, AI lint/codefix, Workshop) ----
+  - type: web
+    name: ai-chip-studio-phase1
+    runtime: docker
+    plan: free
+    rootDir: phase1
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /docs
+    envVars:
+      - key: AICHIP_ENVIRONMENT
+        value: production
+      - key: AICHIP_JWT_SECRET_KEY
+        generateValue: true
+      - key: AICHIP_DATABASE_URL
+        fromDatabase:
+          name: ai-chip-studio-db
+          property: connectionString
+      - key: AICHIP_AUTO_CREATE_TABLES
+        value: "true"
+      - key: AICHIP_CELERY_TASK_ALWAYS_EAGER
+        value: "true"  # no free Background Worker -- run tasks inline, see app/celery_app.py
+      - key: AICHIP_AI_PROVIDER
+        value: gemini
+      - key: AICHIP_GEMINI_API_KEY
+        sync: false
+      - key: AICHIP_RATE_LIMIT_DEFAULT
+        value: "60/minute"
+      - key: AICHIP_RATE_LIMIT_LOGIN
+        value: "5/minute"
+      - key: AICHIP_CORS_ALLOWED_ORIGINS
+        value: "*"  # tighten to your real frontend URL once known, e.g. https://ai-chip-studio.onrender.com
+    autoDeployTrigger: commit
+
+  # ---- Phase 2 — Verification backend (Verilator/Yosys/SymbiYosys) ----
+  - type: web
+    name: ai-chip-studio-phase2-backend
+    runtime: docker
+    plan: free
+    rootDir: phase2/eda-backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGIN
+        value: "*"  # tighten to the phase2 static site's real Netlify/Render URL once known
+      - key: PORT
+        value: "8080"
+    autoDeployTrigger: commit
+
+  # ---- Phase 2 — Verification static frontend ----
+  # NOTE: this project's netlify.toml already targets Netlify for this
+  # piece specifically -- deploy it there instead of duplicating it as a
+  # Render static site, unless you'd rather keep everything on one
+  # platform. Kept here as the Render-native alternative.
+  # ---- Marketing site + console (new design, replaces phase2/public) ----
+  - type: web
+    name: ai-chip-studio-frontend
+    runtime: static
+    plan: free
+    rootDir: phase2_new_frontend
+    staticPublishPath: .
+    autoDeployTrigger: commit
+
+  # ---- Phase 3 — Synthesis Studio (Flask, Yosys) ----
+  - type: web
+    name: ai-chip-studio-phase3
+    runtime: docker
+    plan: free
+    rootDir: phase3
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "5000"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+    autoDeployTrigger: commit
+
+  # ---- Phase 4 — Physical Design (OpenROAD + FreePDK45) ----
+  # See header comment: this will boot and serve /health and /pdks, but
+  # a real physical_design run will very likely OOM on a free instance's
+  # RAM. Deployed per your request to try all 6 phases regardless.
+  - type: web
+    name: ai-chip-studio-phase4
+    runtime: docker
+    plan: free
+    rootDir: phase4
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8004"
+      - key: AICHIP_PDK_ROOT
+        value: /pdk
+    autoDeployTrigger: commit
+
+  # ---- Phase 5 — AI Copilot (Flask) ----
+  - type: web
+    name: ai-chip-studio-phase5
+    runtime: docker
+    plan: free
+    rootDir: phase5
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8005"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+    autoDeployTrigger: commit
+
+  # ---- Phase 6 — Cloud API gateway (Node/Express/TS) ----
+  - type: keyvalue
+    name: chip-studio-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: chip-studio-api
+    runtime: docker
+    plan: free
+    rootDir: phase6
+    dockerfilePath: ./docker/Dockerfile.api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_JOBS_INLINE
+        value: "true"  # no free Background Worker -- run jobs inline, see src/api/jobRoutes.ts
+      - key: DATABASE_URL
+        fromDatabase:
+          name: chip-studio-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: chip-studio-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false  # `openssl rand -hex 32`
+      - key: ANTHROPIC_API_KEY
+        sync: false  # AI fallback since no Ollama/GPU host is available for free
+      - key: OLLAMA_FALLBACK_ENABLED
+        value: "true"
+      - key: OLLAMA_HOST
+        sync: false  # leave unset on free tier
+    autoDeployTrigger: commit

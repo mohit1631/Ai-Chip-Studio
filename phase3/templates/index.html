@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>AI Chip Studio</title>
+{% include "_base_style.html" %}
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Chip Studio</h1>
+  <h2>Phase 3 — Synthesis Studio</h2>
+
+  <nav>
+    <a href="/" class="active">Synthesis</a>
+    <a href="/techmap">Tech Map</a>
+    <a href="/simulate">Simulate</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+
+  <div class="panel">
+    <form action="/synthesize" method="post" enctype="multipart/form-data">
+      <label for="rtl_file">RTL file or ZIP project</label>
+      <input type="file" id="rtl_file" name="rtl_file" accept=".v,.sv,.zip" required>
+      <div class="hint">.v / .sv single file, or a .zip multi-file project</div>
+
+      <label for="top_module">Top module <span style="color:var(--muted)">(optional — auto-detect if blank)</span></label>
+      <input type="text" id="top_module" name="top_module" placeholder="e.g. counter">
+
+      <button type="submit">▶ Run Synthesis</button>
+    </form>
+  </div>
+
+  <div style="color:var(--muted);font-size:.8rem;margin-top:1.5rem">
+    RTL → Yosys → Netlist + Synthesis Log → Area Analysis
+  </div>
+</div>
+</body>
+</html>
