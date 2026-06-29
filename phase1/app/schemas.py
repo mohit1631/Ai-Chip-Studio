@@ -16,7 +16,7 @@ from app.models import JobStatus, JobType, ProjectRole, Tier
 
 # --- Auth (Sprint 5) ---
 
-class UserCreate(BaseModel):
+class (BaseModel):
     email: EmailStr
     password: str
 
