@@ -93,7 +93,7 @@ def test_regex_fallback_does_not_flag_nonblocking_assign():
 def test_regex_fallback_issues_are_marked_confirmed():
     """Deterministic regex matches should never be 'predicted' -- there's
     no AI uncertainty in a regex match, so it should read as confirmed
-    immediately (see LintIssue.status docstring in app/schemas.py)."""
+    immediately (see LintIssue.status docstring in )."""
     from app.services.ai_lint import _regex_fallback
 
     source = """
