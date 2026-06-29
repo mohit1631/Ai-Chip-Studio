@@ -1,5 +1,5 @@
 """
-app/schemas.py
+app/app/app/schemas.py
 ---------------
 Pydantic request/response models for every router. Kept in one file since
 the skeleton is small; split per-domain once Phase 1 grows past this size.
@@ -16,7 +16,7 @@ from app.models import JobStatus, JobType, ProjectRole, Tier
 
 # --- Auth (Sprint 5) ---
 
-class (BaseModel):
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
