@@ -4,9 +4,20 @@ app/routers/auth.py
 Sprint 5 (User Accounts): email/password registration + login.
 OAuth path is defined in app/auth.py::oauth_login_stub and intentionally
 raises until a real provider is wired in.
-"""
 
-from __future__ import annotations
+NOTE: deliberately does NOT use `from __future__ import annotations` (PEP
+563 postponed evaluation), unlike most other files in this app. slowapi's
+@limiter.limit decorator wraps register()/login() with functools.wraps;
+when annotations are postponed (stored as strings), FastAPI/Pydantic have
+to resolve them via typing.get_type_hints() against the function's
+__globals__ at startup -- and the wrapped function produced by
+@limiter.limit doesn't carry that in a way Pydantic can use, causing
+`PydanticUndefinedAnnotation: name 'UserCreate' is not defined` even
+though UserCreate is correctly imported right above. Keeping annotations
+eagerly-evaluated here (no postponed-annotations import) sidesteps that
+resolution failure entirely, since the real types are already bound by
+the time the decorator runs.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
