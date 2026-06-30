@@ -7,7 +7,7 @@
 // =====================================================
 
 import { Worker, Job } from 'bullmq';
-import { createClient } from 'ioredis';
+import Redis from 'ioredis';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,7 +26,7 @@ import type { JobPayload, JobType } from '../types';
 // all, which matters since a free instance has no Redis to connect to.
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 const redis = USE_QUEUE
-  ? createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
+  ? new Redis({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
   : null;
 
 const LIGHT_CONCURRENCY = 5;  // More concurrent than heavy pool
@@ -178,3 +178,4 @@ export function startLightWorker(): Worker<JobPayload> | null {
 if (require.main === module) {
   startLightWorker();
 }
+

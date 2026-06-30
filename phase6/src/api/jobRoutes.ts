@@ -12,7 +12,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { Queue } from 'bullmq';
-import { createClient } from 'ioredis';
+import Redis from 'ioredis';
 import path from 'path';
 import fs from 'fs';
 
@@ -43,7 +43,7 @@ export const jobRouter = Router({ mergeParams: true });
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 
 const redis = USE_QUEUE
-  ? createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
+  ? new Redis({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
   : null;
 
 const LIGHT_QUEUE = USE_QUEUE ? new Queue('light-jobs', { connection: redis as any }) : null;
@@ -361,3 +361,4 @@ jobRouter.get(
     res.download(file_path, safe_file);
   }
 );
+

@@ -14,7 +14,7 @@
 import axios, { AxiosError } from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
 import { Queue, Worker, Job } from 'bullmq';
-import { createClient } from 'ioredis';
+import Redis from 'ioredis';
 import type { AIRequest, AIResponse } from '../types';
 import { logger, safeLog } from './logger';
 
@@ -31,7 +31,7 @@ const AI_CONCURRENCY = 3;
 
 // ---- Redis connection for AI request queue ----
 
-const redisClient = createClient({ 
+const redisClient = new Redis({ 
   url: process.env.REDIS_URL || 'redis://localhost:6379',
 });
 
@@ -192,3 +192,4 @@ export function startAIWorker(): Worker {
 export function getCurrentModelInfo(): { model: string; host: string } {
   return { model: OLLAMA_MODEL, host: OLLAMA_HOST };
 }
+
