@@ -5,16 +5,15 @@
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": false,
-    "noImplicitAny": false,
-    "noEmitOnError": false,
-    "skipLibCheck": true,
+    "strict": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": false,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.bak"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

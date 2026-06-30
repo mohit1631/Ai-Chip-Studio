@@ -22,6 +22,7 @@
 
 import Docker from 'dockerode';
 import path from 'path';
+import { Writable } from 'stream';
 import { db } from '../db/database';
 import { logger } from '../services/logger';
 import type { JobType, WorkerPool } from '../types';
@@ -130,11 +131,19 @@ export async function runInContainer(
     let stderr = '';
 
     await new Promise<void>((resolve) => {
-      docker.modem.demuxStream(logStream, {
-        write: (chunk: Buffer) => { stdout += chunk.toString(); },
-      }, {
-        write: (chunk: Buffer) => { stderr += chunk.toString(); },
+      const stdoutStream = new Writable({
+        write(chunk: Buffer, _enc, cb) {
+          stdout += chunk.toString();
+          cb();
+        },
       });
+      const stderrStream = new Writable({
+        write(chunk: Buffer, _enc, cb) {
+          stderr += chunk.toString();
+          cb();
+        },
+      });
+      docker.modem.demuxStream(logStream, stdoutStream, stderrStream);
       logStream.on('end', resolve);
     });
 

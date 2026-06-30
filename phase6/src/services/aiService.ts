@@ -91,8 +91,8 @@ async function callAnthropic(request: AIRequest): Promise<AIResponse> {
   });
 
   const content = msg.content
-    .filter((b: any) => b.type === 'text')
-    .map((b: any) => b.text)
+    .filter((b: { type: string }) => b.type === 'text')
+    .map((b: { type: string }) => (b as { type: 'text'; text: string }).text)
     .join('');
 
   return {
