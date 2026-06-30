@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "adm-zip": "^0.5.18",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "helmet": "^8.2.0",
+    "ioredis": "^5.11.1",
+    "pg": "^8.22.0",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/pg": "^8.20.0",
+    "@types/uuid": "^10.0.0"
+  }
+}
