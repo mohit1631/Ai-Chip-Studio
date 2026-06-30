@@ -81,7 +81,7 @@ async function stageZip(
   }
 
   // 3. Uncompressed size check BEFORE extractall() — stops ZIP bombs
-  const totalUncompressed = entries.reduce((sum, e) => sum + e.header.size, 0);
+  const totalUncompressed = entries.reduce((sum: number, e: any) => sum + e.header.size, 0);
   if (totalUncompressed > MAX_EXTRACTED_SIZE_BYTES) {
     throw new UploadValidationError(
       `ZIP would extract to ${(totalUncompressed / 1_048_576).toFixed(1)} MB; max is ${MAX_EXTRACTED_SIZE_BYTES / 1_048_576} MB`
