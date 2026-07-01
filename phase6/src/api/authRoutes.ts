@@ -42,8 +42,9 @@ function signToken(user: Pick<UserRecord, 'id' | 'email' | 'role' | 'tier'>): st
     role:  user.role as UserRole,
     tier:  user.tier as SubscriptionTier,
   };
-  return jwt.sign(`payload, `process.env.JWT_SECRET!, { expiresIn`: process.env.JWT_EXPIRES_IN || '7d',
-  } as any);
+  return jwt.sign(payload as any, process.env.JWT_SECRET as string, {
+    expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
+  });
 }
 
 // ---- POST /auth/register ----
@@ -138,5 +139,3 @@ authRouter.post('/login', authRateLimit, async (req: Request, res: Response) => 
   const token = signToken(user);
   res.json({ success: true, data: { token } });
 });
-
-
