@@ -133,7 +133,7 @@ services:
     plan: free
     rootDir: phase3
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: PORT
         value: "5000"
