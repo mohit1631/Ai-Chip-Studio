@@ -50,6 +50,10 @@ RUN git clone --depth 1 https://github.com/boolector/boolector.git /tmp/boolecto
 # SymbiYosys is a Python driver script over Yosys + a solver, maintained
 # in the YosysHQ/sby repo. It has no apt package, so install it straight
 # from source via its own Makefile (just copies the script + libs).
+# sby_core.py imports the "click" CLI library, which isn't in the base
+# image -- install it via pip or `sby --version` fails at runtime/build time.
+RUN pip3 install --no-cache-dir click
+
 RUN git clone --depth 1 https://github.com/YosysHQ/sby.git /tmp/sby \
     && cd /tmp/sby \
     && make install \
