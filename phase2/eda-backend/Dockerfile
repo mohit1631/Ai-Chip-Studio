@@ -13,8 +13,6 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ---- System deps + Verilator + Yosys from apt ----
-# Ubuntu 22.04 ships reasonably recent Verilator (4.x) and Yosys (0.x) builds
-# via apt, which is far faster and more reliable than building from source.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -25,8 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     yosys \
     python3 \
     python3-pip \
-    nodejs \
-    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- Node.js 20 LTS (ubuntu apt ships v12 which is too old for ?? operator) ----
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Confirm core tools are present at build time (fails the build loudly if not)
@@ -50,10 +51,6 @@ RUN git clone --depth 1 https://github.com/boolector/boolector.git /tmp/boolecto
 # SymbiYosys is a Python driver script over Yosys + a solver, maintained
 # in the YosysHQ/sby repo. It has no apt package, so install it straight
 # from source via its own Makefile (just copies the script + libs).
-# sby_core.py imports the "click" CLI library, which isn't in the base
-# image -- install it via pip or `sby --version` fails at runtime/build time.
-RUN pip3 install --no-cache-dir click
-
 RUN git clone --depth 1 https://github.com/YosysHQ/sby.git /tmp/sby \
     && cd /tmp/sby \
     && make install \
