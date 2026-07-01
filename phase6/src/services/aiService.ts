@@ -31,9 +31,9 @@ const AI_CONCURRENCY = 3;
 
 // ---- Redis connection for AI request queue ----
 
-const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379',
-);
-
+const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  tls: { rejectUnauthorized: false }
+});
 // ---- AI Request Queue (BullMQ) ----
 // Per roadmap: AI queue is separate from EDA worker queues.
 

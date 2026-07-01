@@ -26,7 +26,9 @@ import type { JobPayload, JobType } from '../types';
 // all, which matters since a free instance has no Redis to connect to.
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 const redis = USE_QUEUE
-  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379' )
+  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      tls: { rejectUnauthorized: false }
+    })
   : null;
 
 const LIGHT_CONCURRENCY = 5;  // More concurrent than heavy pool
@@ -178,5 +180,3 @@ export function startLightWorker(): Worker<JobPayload> | null {
 if (require.main === module) {
   startLightWorker();
 }
-
-

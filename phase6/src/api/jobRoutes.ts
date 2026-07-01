@@ -43,7 +43,9 @@ export const jobRouter = Router({ mergeParams: true });
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 
 const redis = USE_QUEUE
-  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379' )
+  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      tls: { rejectUnauthorized: false }
+    })
   : null;
 
 const LIGHT_QUEUE = USE_QUEUE ? new Queue('light-jobs', { connection: redis as any }) : null;

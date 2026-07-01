@@ -23,11 +23,14 @@ import type { JobPayload, JobType } from '../types';
 // jobRoutes.ts's tier guard) -- by the time a deployment has a paid tier
 // with real compute, it should also have a real Background Worker + Redis,
 // so USE_QUEUE should be true in that environment.
+
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 const redis = USE_QUEUE
-  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379' )
+  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      tls: { rejectUnauthorized: false }
+    })
   : null;
-
+  
 // LOW concurrency — OpenROAD jobs can each consume 8+ GB RAM.
 // Running two simultaneously on a 16 GB node starves both.
 const HEAVY_CONCURRENCY = 2;
