@@ -43,7 +43,7 @@ export const jobRouter = Router({ mergeParams: true });
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 
 const redis = USE_QUEUE
-  ? new Redis({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
+  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379' )
   : null;
 
 const LIGHT_QUEUE = USE_QUEUE ? new Queue('light-jobs', { connection: redis as any }) : null;
@@ -361,4 +361,5 @@ jobRouter.get(
     res.download(file_path, safe_file);
   }
 );
+
 

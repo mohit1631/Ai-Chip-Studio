@@ -25,7 +25,7 @@ import type { JobPayload, JobType } from '../types';
 // so USE_QUEUE should be true in that environment.
 const USE_QUEUE = process.env.PROCESS_JOBS_INLINE !== 'true';
 const redis = USE_QUEUE
-  ? new Redis({ url: process.env.REDIS_URL || 'redis://localhost:6379' })
+  ? new Redis(process.env.REDIS_URL || 'redis://localhost:6379' )
   : null;
 
 // LOW concurrency — OpenROAD jobs can each consume 8+ GB RAM.
@@ -205,4 +205,5 @@ export function startHeavyWorker(): Worker<JobPayload> | null {
 if (require.main === module) {
   startHeavyWorker();
 }
+
 

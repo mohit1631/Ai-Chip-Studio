@@ -31,9 +31,8 @@ const AI_CONCURRENCY = 3;
 
 // ---- Redis connection for AI request queue ----
 
-const redisClient = new Redis({ 
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-});
+const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6379',
+);
 
 // ---- AI Request Queue (BullMQ) ----
 // Per roadmap: AI queue is separate from EDA worker queues.
@@ -192,4 +191,5 @@ export function startAIWorker(): Worker {
 export function getCurrentModelInfo(): { model: string; host: string } {
   return { model: OLLAMA_MODEL, host: OLLAMA_HOST };
 }
+
 
